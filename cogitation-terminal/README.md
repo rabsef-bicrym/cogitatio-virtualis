@@ -1,40 +1,198 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/pages/api-reference/create-next-app).
+# COGITATIO VIRTUALIS - Cogitation Terminal
 
-## Getting Started
+A neural terminal interface merging traditional command-line aesthetics with modern AI capabilities. The Cogitation Terminal provides a retro-futuristic interface for AI-powered document exploration and interaction.
 
-First, run the development server:
+## Project Status
+- 🟢 **Boot Sequence**: Complete
+  - ASCII art rendering
+  - Boot message generation
+  - Haiku generation
+  - State transitions
+  - CRT effects
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+- 🟢 **Error Handling [Basic]**: Complete
+  - Error boundary implementation
+  - Visual error states
+  - Recovery system
+  - Error logging
+  - Fallback content
+
+- 🟡 **Main Loop**: In Progress
+  - Chat controller ✓
+  - Command processing ✓
+  - Document retrieval ✓
+  - Vector search integration ⚠️
+  - Response generation ⚠️
+
+- 🔴 **Testing**: Not Started
+  - No testing infrastructure currently implemented
+
+## Architecture
+
+### Core Components
+
+#### Terminal System
+- `CogitationTerminal`: Main component orchestrating the terminal experience
+- `TerminalFrame`: Responsive container with CRT effects
+- Controller-based architecture for state management
+- Event queue system for operation sequencing
+
+#### Controllers
+1. **Boot Controller**
+   - Handles startup sequence
+   - ASCII art rendering
+   - System initialization
+   - State transitions
+
+2. **Chat Controller**
+   - Command processing
+   - History management
+   - Document retrieval
+   - Search functionality
+   - Special commands
+
+#### State Management
+```typescript
+interface TerminalState {
+  mode: 'NORMAL' | 'ERROR' | 'RECOVERY';
+  designatedController: 'boot' | 'chat' | null;
+  isLocked: boolean;
+  isLoading: boolean;
+  isFocused: boolean;
+  error: Error | null;
+}
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Key Features
 
-You can start editing the page by modifying `pages/index.tsx`. The page auto-updates as you edit the file.
+#### Visual Effects
+- Authentic CRT screen simulation
+- Scanline effects
+- Screen noise
+- Text glow
+- Flicker effects
 
-[API routes](https://nextjs.org/docs/pages/building-your-application/routing/api-routes) can be accessed on [http://localhost:3000/api/hello](http://localhost:3000/api/hello). This endpoint can be edited in `pages/api/hello.ts`.
+#### Terminal Features
+- Command history
+- Tab completion (planned)
+- Rich text formatting
+- ASCII art support
+- Loading indicators
+- Error visualization
 
-The `pages/api` directory is mapped to `/api/*`. Files in this directory are treated as [API routes](https://nextjs.org/docs/pages/building-your-application/routing/api-routes) instead of React pages.
+#### AI Integration
+- Claude API integration
+- Vector search capabilities
+- Dynamic response generation
+- Context-aware interactions
+- Professional document analysis
 
-This project uses [`next/font`](https://nextjs.org/docs/pages/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### Technical Stack
+- Next.js 12
+- TypeScript
+- React 17
+- CSS Modules
+- Claude API
+- Vector Search
 
-## Learn More
+### API Endpoints
 
-To learn more about Next.js, take a look at the following resources:
+```
+POST /api/chat/message     - Process chat messages
+GET  /api/boot/sequence    - Generate boot sequence
+GET  /api/chat/documents   - Retrieve documents
+GET  /api/chat/experience  - Get experience data
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn-pages-router) - an interactive Next.js tutorial.
+### Commands
+```bash
+# System Commands
+/clear            - Clear terminal
+/status           - Show system status
+/history [count]  - Show command history
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+# Document Commands
+/docs <type>      - Get documents by type
+/project list     - List all projects
+/exp list         - List experience
+/search <query>   - Vector search
+```
 
-## Deploy on Vercel
+### Styling Architecture
+- Modular CSS with CSS Modules
+- Dynamic theme configuration
+- Responsive design
+- Mobile orientation handling
+- CRT effect layering
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### Error Handling
+- Centralized error management
+- Visual error states
+- Recovery system
+- Fallback content
+- Error logging
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/pages/building-your-application/deploying) for more details.
+## Development
+
+### Prerequisites
+```bash
+Node.js >= 16
+npm >= 7
+```
+
+### Setup
+```bash
+# Install dependencies
+npm install
+
+# Run development server
+npm run dev
+
+# Build for production
+npm run build
+```
+
+### Environment Variables
+```bash
+VECTOR_API_URL=http://localhost:8000
+ANTHROPIC_API_KEY=sk-ant-xxxx
+PORT=3000 # Optional
+```
+
+## Project Structure
+```
+cogitation-terminal/
+├── components/       # React components
+│   └── Terminal/    # Terminal components
+├── pages/           # Next.js pages
+├── lib/             # Utilities
+├── styles/          # Global styles
+└── types/           # TypeScript types
+```
+
+## Upcoming Features
+
+### Short Term
+- Enhanced error visualization
+- Resume printing
+- Session persistence
+
+### Medium Term
+- History search
+- More terminal effects
+- Custom themes (or themes at all??)
+- Enhanced vector search
+
+### Long Term
+- Custom animations
+- Extended AI capabilities
+- Performance optimizations
+
+## Code Style
+- Strict TypeScript
+- ESLint configuration
+- Prettier formatting
+
+## Credits
+Original concept and ASCII art effects by PokeClaude.
+Terminal aesthetic inspired by classic CRT displays.
