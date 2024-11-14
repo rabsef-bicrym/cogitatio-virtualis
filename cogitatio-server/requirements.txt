@@ -1,0 +1,10 @@
+# cogitatio-virtualis/cogitatio-server/cogitatio/requirements.txt
+
+# Install the package in editable mode
+-e .
+
+# Development dependencies
+pytest>=6.0.0
+black>=21.0.0
+flake8>=3.9.0
+mypy>=0.910

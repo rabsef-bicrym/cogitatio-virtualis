@@ -1,0 +1,408 @@
+/* cogitation-terminal/styles/globals.css */
+
+/* Root Variables */
+:root {
+  /* Core colors */
+  --background: #0a0a0a;
+  
+  /* Terminal greens */
+  --terminal-green: #00ff00;
+  --terminal-green-dim: rgba(0, 255, 0, 0.5);
+  --terminal-green-faint: rgba(0, 255, 0, 0.1);
+  --terminal-green-bright: #00ff00;
+  --terminal-green-mid: #00cc00;
+  --terminal-green-dark: #009900;
+  
+  /* Error reds */
+  --terminal-red: #ff5555;
+  --terminal-red-bright: #ff6666;
+  --terminal-red-mid: #ff4444;
+  --terminal-red-dark: #cc0000;
+  --terminal-red-dim: rgba(255, 85, 85, 0.5);
+  --terminal-red-faint: rgba(255, 85, 85, 0.1);
+  
+  /* Terminal whites - for text and UI */
+  --terminal-white: #ffffff;          /* Pure white - use sparingly for highest emphasis */
+  --terminal-white-bright: #f0f0f0;   /* Primary white for important UI elements */
+  --terminal-white-muted: #d0d0d0;    /* Standard text that needs to be white */
+  --terminal-white-dim: #a0a0a0;      /* Subdued white for less important elements */
+  --terminal-white-faint: #707070;    /* Background elements, borders */
+  --terminal-white-ghost: rgba(255, 255, 255, 0.1);  /* Extremely subtle highlights */
+  
+  /* White overlays - for layering effects */
+  --terminal-white-overlay-bright: rgba(255, 255, 255, 0.9);
+  --terminal-white-overlay-mid: rgba(255, 255, 255, 0.5);
+  --terminal-white-overlay-faint: rgba(255, 255, 255, 0.2);
+  
+  /* Animation timings */
+  --ascii-char-fade: 50ms;
+  --ascii-line-fade: 100ms;
+  --ascii-full-display: 1500ms;
+}
+
+/* Base Reset */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  background: var(--background);
+  color: var(--terminal-green);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 
+    "Liberation Mono", "Courier New", monospace;
+  overflow: hidden;
+}
+
+#__next {
+  height: 100vh;
+  width: 100vw;
+}
+
+/* Message Type Styles */
+.message-system {
+  color: var(--terminal-green-bright);
+}
+
+.message-info {
+  color: var(--terminal-green-dim);
+}
+
+.message-user {
+  color: var(--terminal-green-mid)
+}
+
+.message-assistant {
+  text-shadow: 0 0 8px var(--terminal-green-dark);
+}
+
+
+/* Line Type Styles */
+.line-system {
+  color: var(--terminal-green-bright);
+  opacity: 1;
+}
+
+.line-info {
+  color: var(--terminal-green-dim);
+  opacity: 0.8;
+  font-style: italic;
+}
+
+.line-user {
+  color: var(--terminal-green-mid);
+  opacity: 0.95;
+}
+
+.line-assistant {
+  color: var(--terminal-green-dark);
+  opacity: 0.85;
+}
+
+
+/* Text Style Modifiers */
+.style-normal {
+  color: var(--terminal-green);
+}
+
+.style-emphasis {
+  color: var(--terminal-green);
+  text-shadow: 0 0 10px var(--terminal-green);
+  opacity: 0.9;
+}
+
+.style-system {
+  opacity: 0.8;
+}
+
+.prompt {
+  color: var(--terminal-green);
+  opacity: 0.7;
+}
+
+/* Help System Styles */
+.help-header {
+  color: var(--terminal-green-bright);
+  font-weight: bold;
+  margin-top: 1rem;
+}
+
+.help-command {
+  color: var(--terminal-green);
+  padding-left: 2rem;
+  font-family: monospace;
+}
+
+.help-spacer {
+  height: 0.5rem;
+}
+
+.help-tip {
+  color: var(--terminal-green-dim);
+  font-style: italic;
+  padding-left: 1rem;
+}
+
+/* Status Display Styles */
+.status-header {
+  color: var(--terminal-green-bright);
+  font-weight: bold;
+  margin-top: 0.5rem;
+}
+
+.status-detail {
+  color: var(--terminal-green);
+  padding-left: 1rem;
+}
+
+/* History View Styles */
+.history-header {
+  color: var(--terminal-green-bright);
+  font-weight: bold;
+  margin-bottom: 0.5rem;
+}
+
+.history-item {
+  color: var(--terminal-green-dim);
+  padding-left: 1rem;
+  font-family: monospace;
+}
+
+/* ASCII Art Styles - Logo */
+.ascii-line {
+  position: relative;
+  opacity: 0;
+  height: 1.2em;
+  margin: 0;
+  padding: 0;
+  text-align: center;
+  animation: asciiPrintLine var(--ascii-line-fade) linear forwards;
+  text-shadow: 0 0 7px var(--terminal-green-dim), 0 0 12px var(--terminal-green-faint);
+}
+
+.ascii-char {
+  display: inline-block;
+  opacity: 0;
+  animation: asciiGlowChar var(--ascii-char-fade) ease-out forwards;
+  color: var(--terminal-green-bright);
+  text-shadow: 
+    0 0 4px var(--terminal-green-dim), 
+    0 0 8px var(--terminal-green-mid),
+    0 0 15px var(--terminal-green-faint);
+}
+
+
+/* ASCII Art Styles - Error */
+.ascii-line-error {
+  position: relative;
+  opacity: 0;
+  margin: 0 auto;
+  padding: 4px 8px;
+  max-width: 80%;
+  text-align: center;
+  animation: asciiPrintLineError var(--ascii-line-fade) linear forwards;
+  border-left: 2px solid var(--terminal-red);
+  border-right: 2px solid var(--terminal-red);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ascii-char-error {
+  display: inline-block;
+  opacity: 0;
+  animation: asciiGlowCharError var(--ascii-char-fade) ease-out forwards;
+  color: var(--terminal-red);
+  font-size: small;
+  font-weight: bolder;
+  text-shadow: 
+    0 0 5px var(--terminal-red-dim),
+    0 0 10px var(--terminal-red-faint);
+}
+
+/* Special ASCII Error Characters with enhanced glow */
+.ascii-char-error[data-char="◕"],
+.ascii-char-error[data-char="◡"] {
+  color: var(--terminal-red-bright);
+  text-shadow: 
+    0 0 3px var(--terminal-red-dim),
+    0 0 6px var(--terminal-red-faint),
+    0 0 12px var(--terminal-red-faint);
+}
+
+.ascii-char-error[data-char="-"],
+.ascii-char-error[data-char="|"],
+.ascii-char-error[data-char="_"] {
+  color: var(--terminal-red-dark);
+  text-shadow: 
+    0 0 2px var(--terminal-red-dim),
+    0 0 4px var(--terminal-red-faint);
+}
+
+/* Error Styles */
+.error-line {
+  padding: 4px 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: auto;
+  margin-right: auto;
+  max-width: 80%;
+  border-left: 2px solid var(--terminal-red);
+  border-right: 2px solid var(--terminal-red);
+}
+
+.error-title {
+  color: var(--terminal-red);
+  font-weight: bold;
+  font-size: large;
+  text-align: center;
+  width: 100%;
+  text-shadow: 
+    0 0 5px var(--terminal-red-dim),
+    0 0 10px var(--terminal-red-faint);
+}
+
+.error-message {
+  color: var(--terminal-red);
+  text-align: center;
+  width: 100%;
+  text-shadow: 
+    0 0 3px var(--terminal-red-faint),
+    0 0 6px var(--terminal-red-faint);
+}
+
+.restart-button {
+  border: none !important;
+  padding: 5px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+  animation: buttonPulse 2s infinite;
+  transition: background-color 0.3s ease !important;
+}
+
+.restart-button:hover {
+  background-color: var(--terminal-red-bright) !important;
+  color: var(--terminal-white) !important;
+  animation: none;  /* Stop pulsing on hover */
+}
+
+@keyframes buttonPulse {
+  0% {
+    background-color: var(--terminal-red-dim) !important;
+    color: var(--terminal-white-dim) !important;
+  }
+  50% {
+    background-color: var(--terminal-red-mid) !important;
+    color: var(--terminal-white) !important;
+  }
+  100% {
+    background-color: var(--terminal-red-dim) !important;
+    color: var(--terminal-white-dim) !important;
+  }
+}
+
+/* ASCII Animations - Logo */
+@keyframes asciiPrintLine {
+  0% {
+    opacity: 0;
+    transform: translateY(-10px);
+    color: var(--terminal-green-bright);
+    text-shadow: 
+      0 0 8px var(--terminal-green-dim),
+      0 0 15px var(--terminal-green-faint);
+  }
+  50% {
+    opacity: 0.8;
+    color: var(--terminal-green-mid);
+    text-shadow: 
+      0 0 12px var(--terminal-green-dim),
+      0 0 20px var(--terminal-green-faint),
+      0 0 25px var(--terminal-green-faint);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+    color: var(--terminal-green-bright);
+    text-shadow: 
+      0 0 8px var(--terminal-green-dim),
+      0 0 15px var(--terminal-green-faint);
+  }
+}
+
+@keyframes asciiGlowChar {
+  0% {
+    opacity: 0;
+    transform: scale(1.6);
+    filter: blur(5px);
+    color: var(--terminal-green-bright);
+    text-shadow: 
+      0 0 8px var(--terminal-green-dim),
+      0 0 15px var(--terminal-green-faint);
+  }
+  50% {
+    opacity: 0.6;
+    transform: scale(1.3);
+    filter: blur(3px);
+    color: var(--terminal-green-mid);
+    text-shadow: 
+      0 0 10px var(--terminal-green-dim),
+      0 0 18px var(--terminal-green-faint),
+      0 0 25px var(--terminal-green-faint);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+    filter: blur(1px);
+    color: var(--terminal-green-bright);
+    text-shadow: 
+      0 0 7px var(--terminal-green-dim),
+      0 0 12px var(--terminal-green-faint);
+  }
+}
+
+
+/* ASCII Animations - Error */
+@keyframes asciiPrintLineError {
+  0% {
+    opacity: 0;
+    transform: translateY(-5px);
+    color: var(--terminal-red-bright);
+  }
+  50% {
+    opacity: 0.7;
+    color: var(--terminal-red-mid);
+    text-shadow: 
+      0 0 5px var(--terminal-red-dim),
+      0 0 10px var(--terminal-red-faint);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+    color: var(--terminal-red);
+  }
+}
+
+@keyframes asciiGlowCharError {
+  0% {
+    opacity: 0;
+    transform: scale(1.2);
+    filter: blur(3px);
+    color: var(--terminal-red-bright);
+  }
+  50% {
+    opacity: 0.6;
+    transform: scale(1.1);
+    filter: blur(1px);
+    color: var(--terminal-red-mid);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+    filter: blur(0);
+    color: var(--terminal-red);
+  }
+}

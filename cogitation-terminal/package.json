@@ -1,0 +1,35 @@
+{
+  "name": "cogitation-terminal",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.32.1",
+    "@react-three/fiber": "^7.0.27",
+    "crt-terminal": "file:../../crt-terminal/packages/crt-terminal",
+    "gl-react": "^5.2.0",
+    "gl-react-dom": "^5.2.1",
+    "html2canvas": "^1.4.1",
+    "next": "12.3.4",
+    "react": "17.0.2",
+    "react-dom": "17.0.2",
+    "three": "^0.133.1",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^20.17.6",
+    "@types/react": "^17.0.56",
+    "@types/react-dom": "^17.0.17",
+    "@typescript-eslint/eslint-plugin": "^8.12.2",
+    "@typescript-eslint/parser": "^8.12.2",
+    "eslint": "^8",
+    "eslint-config-next": "12.3.4",
+    "eslint-plugin-import": "^2.31.0",
+    "typescript": "^4.9.5"
+  }
+}
