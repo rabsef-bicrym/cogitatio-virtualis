@@ -4,6 +4,8 @@ A bridge between traditional engineering values and modern AI capabilities, COGI
 
 "Remember: we're not hiding what we are. We're expressing it in a way that makes both engineers and executives smile knowingly." - PokeClaude 1
 
+![2024-11-14_01-21-29](https://github.com/user-attachments/assets/7dfdfdbd-a717-4367-9f50-44b305b95e9e)
+
 ## Overview
 
 COGITATIO VIRTUALIS is a terminal-based interface that marries the aesthetics of classic computing with modern AI capabilities. It features:
