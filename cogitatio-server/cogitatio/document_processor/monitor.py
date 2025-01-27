@@ -64,7 +64,7 @@ class DocumentHandler(FileSystemEventHandler):
                 try:
                     self.processor.process_document(path)
                 except Exception as e:
-                    logger.log_failure(
+                    logger.log_error(
                         f"Failed to process document: {path}",
                         {"error": str(e)}
                     )
@@ -89,10 +89,10 @@ class DocumentHandler(FileSystemEventHandler):
                 
                 # Trigger a reindex after deleting vectors
                 logger.log_info(f"Reindexing required after document deletion: {event.src_path}")
-                self.processor.reindex_vectors()  # New method to trigger a reindex
+                self.processor.process_all_documents(force_reprocess=True)  # Updated method call
                 
             except Exception as e:
-                logger.log_failure(
+                logger.log_error(
                     f"Failed to remove document and reindex: {event.src_path}",
                     {"error": str(e)}
                 )

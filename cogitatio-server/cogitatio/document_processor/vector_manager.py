@@ -1,4 +1,4 @@
-# server/document_processor/vector_manager.py
+# cogitatio-virtualis/cogitatio-server/cogitatio/document_processor/vector_manager.py
 
 import os
 import faiss
@@ -65,9 +65,9 @@ class VectorManager:
                         return index
                     except Exception as backup_e:
                         logger.log_error(f"Failed to restore backup: {backup_e}")
-        
+
         # Create new index if loading fails
-        index = faiss.IndexFlatL2(self.dimension)
+        index = faiss.IndexFlatIP(self.dimension)  # Use inner product
         faiss.write_index(index, str(self.index_path))
         logger.log_info("Created new index")
         return index
@@ -78,11 +78,15 @@ class VectorManager:
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS metadata (
                     vector_id INTEGER PRIMARY KEY,
-                    doc_id TEXT NOT NULL,
-                    metadata TEXT NOT NULL
+                    doc_id TEXT NOT NULL,             
+                    chunk_id TEXT NOT NULL UNIQUE,
+                    metadata TEXT NOT NULL,
+                    content TEXT NOT NULL
                 )
             """)
             conn.execute("CREATE INDEX IF NOT EXISTS idx_doc_id ON metadata(doc_id)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_chunk_id ON metadata(chunk_id)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_vector_id ON metadata(vector_id)")
 
     def store_vectors(self, vectors: List[Dict[str, Any]]) -> None:
         """
@@ -90,25 +94,39 @@ class VectorManager:
         
         Args:
             vectors: List of dicts containing:
-                - 'id': Unique identifier
+                - 'id': Unique document identifier
+                - 'chunk_id': Unique chunk identifier
                 - 'values': Vector values as numpy array
                 - 'metadata': Dict of metadata
+                - 'content': Content of the chunk
         """
         try:
+            # Validate that each vector has 'chunk_id'
+            for vec in vectors:
+                if 'chunk_id' not in vec:
+                    raise ValueError("Each vector must have a 'chunk_id' field.")
+
             # Prepare vectors for FAISS
             vector_data = np.array([v['values'] for v in vectors]).astype('float32')
+            vector_data = vector_data / np.linalg.norm(vector_data, axis=1, keepdims=True)  # Normalize
             
             # Add to FAISS
             start_idx = self.index.ntotal
             self.index.add(vector_data)
             
-            # Store metadata
+            # Store metadata and content
             with sqlite3.connect(self.db_path) as conn:
                 for i, vec in enumerate(vectors):
                     vector_id = start_idx + i
                     conn.execute(
-                        "INSERT OR REPLACE INTO metadata (vector_id, doc_id, metadata) VALUES (?, ?, ?)",
-                        (vector_id, vec['id'], json.dumps(vec['metadata']))
+                        "INSERT OR REPLACE INTO metadata (vector_id, doc_id, chunk_id, metadata, content) VALUES (?, ?, ?, ?, ?)",
+                        (
+                            vector_id,
+                            vec['id'],
+                            vec['chunk_id'],
+                            json.dumps(vec['metadata']),
+                            vec.get('content', '')  # Ensure 'content' is provided
+                        )
                     )
             
             # Save index after successful update
@@ -136,28 +154,33 @@ class VectorManager:
         try:
             # Ensure vector is in correct shape
             query_vector = query_vector.reshape(1, -1).astype('float32')
-            
+            query_vector = query_vector / np.linalg.norm(query_vector, axis=1, keepdims=True)  # Normalize
+
             # Search index
             distances, indices = self.index.search(query_vector, k)
-            
-            # Get metadata for results
+
+            # Get metadata and content for results
             metadata_list = []
             with sqlite3.connect(self.db_path) as conn:
                 for idx in indices[0]:
                     if idx != -1:  # -1 indicates no match found
                         result = conn.execute(
-                            "SELECT metadata FROM metadata WHERE vector_id = ?",
+                            "SELECT metadata, content, chunk_id FROM metadata WHERE vector_id = ?",
                             (int(idx),)
                         ).fetchone()
                         if result:
-                            metadata_list.append(json.loads(result[0]))
+                            metadata_json, content, chunk_id = result
+                            metadata_dict = json.loads(metadata_json)
+                            metadata_dict['content'] = content
+                            metadata_dict['chunk_id'] = chunk_id
+                            metadata_list.append(metadata_dict)
                         else:
                             metadata_list.append(None)
                     else:
                         metadata_list.append(None)
-            
+
             return distances[0].tolist(), metadata_list
-            
+
         except Exception as e:
             logger.log_error("Failed to search vectors", {"error": str(e)})
             raise
@@ -173,33 +196,41 @@ class VectorManager:
             # Get vectors to remove
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.execute(
-                    "SELECT vector_id FROM metadata WHERE doc_id LIKE ?",
+                    "SELECT vector_id, chunk_id FROM metadata WHERE doc_id LIKE ?",
                     (f"{doc_id}%",)
                 )
-                vector_ids = [row[0] for row in cursor.fetchall()]
+                vector_entries = cursor.fetchall()
                 
-                if not vector_ids:
+                if not vector_entries:
                     logger.log_warning(f"No vectors found for document: {doc_id}")
                     return
                 
-                # Create mask for kept vectors
-                kept_vectors = np.ones(self.index.ntotal, dtype=bool)
-                kept_vectors[vector_ids] = False
+                vector_ids = [row[0] for row in vector_entries]
+                chunk_ids = [row[1] for row in vector_entries]
                 
-                # Create new index with kept vectors
-                new_index = faiss.IndexFlatL2(self.dimension)
-                vectors_to_keep = [self.index.reconstruct(i) for i in range(self.index.ntotal) 
-                                 if i not in vector_ids]
+                # Create a set for faster lookup
+                vector_ids_set = set(vector_ids)
+                
+                # Extract vectors to keep
+                vectors_to_keep = [
+                    self.index.reconstruct(i) for i in range(self.index.ntotal) if i not in vector_ids_set
+                ]
+                
+                # Create new index
+                new_index = faiss.IndexFlatIP(self.dimension)  # Use inner product for cosine similarity
                 
                 if vectors_to_keep:
                     vectors_array = np.array(vectors_to_keep).astype('float32')
+                    vectors_array = vectors_array / np.linalg.norm(vectors_array, axis=1, keepdims=True)  # Normalize
                     new_index.add(vectors_array)
                 
-                # Remove metadata
+                # Update the in-memory index
+                self.index = new_index
+                
+                # Remove metadata entries
                 conn.execute("DELETE FROM metadata WHERE doc_id LIKE ?", (f"{doc_id}%",))
                 
-                # Swap indices
-                self.index = new_index
+                # Save the updated index
                 self._save_index()
                 
                 logger.log_info(f"Removed vectors for document: {doc_id}", {
@@ -209,6 +240,56 @@ class VectorManager:
                 
         except Exception as e:
             logger.log_error(f"Failed to remove document: {doc_id}", {"error": str(e)})
+            raise
+
+    def remove_vector_by_chunk_id(self, chunk_id: str) -> None:
+        """
+        Remove a specific vector based on its chunk_id.
+        
+        Args:
+            chunk_id: Unique identifier of the chunk to remove
+        """
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                # Retrieve the vector_id associated with the chunk_id
+                result = conn.execute(
+                    "SELECT vector_id FROM metadata WHERE chunk_id = ?",
+                    (chunk_id,)
+                ).fetchone()
+                
+                if not result:
+                    logger.log_warning(f"No vector found with chunk_id: {chunk_id}")
+                    return
+                
+                vector_id = result[0]
+                
+                # Create a new index excluding the vector to remove
+                vectors_to_keep = [
+                    self.index.reconstruct(i) for i in range(self.index.ntotal) if i != vector_id
+                ]
+                
+                new_index = faiss.IndexFlatIP(self.dimension)
+                
+                if vectors_to_keep:
+                    vectors_array = np.array(vectors_to_keep).astype('float32')
+                    vectors_array = vectors_array / np.linalg.norm(vectors_array, axis=1, keepdims=True)  # Normalize
+                    new_index.add(vectors_array)
+                
+                # Update the in-memory index
+                self.index = new_index
+                
+                # Remove metadata entry
+                conn.execute("DELETE FROM metadata WHERE chunk_id = ?", (chunk_id,))
+                
+                # Save the updated index
+                self._save_index()
+                
+                logger.log_info(f"Removed vector with chunk_id: {chunk_id}", {
+                    "total_vectors": self.index.ntotal
+                })
+                
+        except Exception as e:
+            logger.log_error(f"Failed to remove vector with chunk_id: {chunk_id}", {"error": str(e)})
             raise
 
     def _save_index(self) -> None:
@@ -276,7 +357,7 @@ class VectorManager:
                     raise e
             
             # 2. Create new empty FAISS index
-            new_index = faiss.IndexFlatL2(self.dimension)
+            new_index = faiss.IndexFlatIP(self.dimension)
             
             # 3. Atomic replacement of index file using tempfile
             with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
@@ -294,4 +375,86 @@ class VectorManager:
             
         except Exception as e:
             logger.log_error("Failed to reset vector store", {"error": str(e)})
+            raise
+
+    def update_vector_metadata(self, chunk_id: str, new_metadata: Dict[str, Any], new_content: Optional[str] = None) -> None:
+        """
+        Update metadata and/or content of a specific vector identified by chunk_id.
+        
+        Args:
+            chunk_id: Unique identifier of the chunk to update
+            new_metadata: New metadata dictionary to update
+            new_content: New content string to update (optional)
+        """
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                # Check if the chunk_id exists
+                result = conn.execute(
+                    "SELECT vector_id FROM metadata WHERE chunk_id = ?",
+                    (chunk_id,)
+                ).fetchone()
+                
+                if not result:
+                    logger.log_warning(f"No vector found with chunk_id: {chunk_id}")
+                    return
+                
+                # Prepare update fields
+                update_fields = []
+                update_values = []
+                
+                if new_metadata:
+                    update_fields.append("metadata = ?")
+                    update_values.append(json.dumps(new_metadata))
+                
+                if new_content is not None:
+                    update_fields.append("content = ?")
+                    update_values.append(new_content)
+                
+                if not update_fields:
+                    logger.log_warning("No updates provided for vector metadata.")
+                    return
+                
+                update_values.append(chunk_id)
+                
+                # Execute update
+                conn.execute(
+                    f"UPDATE metadata SET {', '.join(update_fields)} WHERE chunk_id = ?",
+                    tuple(update_values)
+                )
+                
+                logger.log_info(f"Updated metadata for chunk_id: {chunk_id}")
+                
+        except Exception as e:
+            logger.log_error(f"Failed to update metadata for chunk_id: {chunk_id}", {"error": str(e)})
+            raise
+
+    def get_vector_by_chunk_id(self, chunk_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Retrieve vector information based on chunk_id.
+        
+        Args:
+            chunk_id: Unique identifier of the chunk to retrieve
+        
+        Returns:
+            Dictionary containing metadata and content if found, else None
+        """
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                result = conn.execute(
+                    "SELECT vector_id, metadata, content FROM metadata WHERE chunk_id = ?",
+                    (chunk_id,)
+                ).fetchone()
+                
+                if result:
+                    vector_id, metadata_json, content = result
+                    metadata_dict = json.loads(metadata_json)
+                    metadata_dict['content'] = content
+                    metadata_dict['vector_id'] = vector_id
+                    return metadata_dict
+                else:
+                    logger.log_warning(f"No vector found with chunk_id: {chunk_id}")
+                    return None
+                
+        except Exception as e:
+            logger.log_error(f"Failed to retrieve vector with chunk_id: {chunk_id}", {"error": str(e)})
             raise

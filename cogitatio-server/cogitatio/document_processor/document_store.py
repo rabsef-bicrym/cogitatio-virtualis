@@ -8,7 +8,7 @@ from pathlib import Path
 import voyageai
 from typing import List, Dict, Any, Optional, Tuple, Union
 from cogitatio.utils.logging import ComponentLogger
-from cogitatio.types.schemas import DocumentType, OtherDocumentType, ProjectSubType
+from cogitatio.types.schemas import DocumentType, OtherSubType, ProjectSubType
 from .vector_manager import VectorManager
 from .config import get_voyage_client_config
 
@@ -52,7 +52,7 @@ class DocumentStore:
 
     async def get_random_texts(self, n: int = 5) -> List[str]:
         """
-        Get random chunk texts without metadata, useful for system messages.
+        Get random chunk contents without metadata, useful for system messages.
         
         Args:
             n: Number of random texts to retrieve
@@ -62,9 +62,9 @@ class DocumentStore:
         """
         try:
             with sqlite3.connect(self.db_path) as conn:
-                # Just get the chunk text, not the full document
+                # Retrieve the 'content' field directly instead of 'chunk_text' from metadata
                 rows = conn.execute("""
-                    SELECT metadata->>'chunk_text'
+                    SELECT content
                     FROM metadata
                     ORDER BY RANDOM()
                     LIMIT ?
@@ -76,23 +76,49 @@ class DocumentStore:
             logger.log_error("Failed to get random texts", {"error": str(e)})
             return []
 
-    async def get_document(self, doc_id: str) -> Optional[Dict[str, Any]]:
+    async def get_document(self, doc_id: str) -> Optional[List[Dict[str, Any]]]:
         """
-        Get a complete document by ID.
-        
+        Get all chunks of a document by ID.
+
         Args:
             doc_id: Document identifier
-            
+
         Returns:
-            Dict containing document metadata and content
+            List of document chunks with metadata and content, or None if not found
         """
         try:
-            metadata, content = await self.reconstruct_document(doc_id)
-            return {
+            with sqlite3.connect(self.db_path) as conn:
+                rows = conn.execute("""
+                    SELECT 
+                        chunk_id, 
+                        json_extract(metadata, '$.total_chunks') AS total_chunks, 
+                        metadata, 
+                        content 
+                    FROM metadata 
+                    WHERE doc_id = ? 
+                    ORDER BY json_extract(metadata, '$.chunk_index')
+                """, (doc_id,)).fetchall()
+
+            if not rows:
+                return None
+
+            chunks = []
+            for chunk_id, total_chunks, meta, content in rows:
+                metadata = json.loads(meta)
+                chunks.append({
+                    "doc_id": metadata.get("doc_id"),
+                    "chunk_id": chunk_id,
+                    "total_chunks": total_chunks,
+                    "content": content,
+                    "metadata": metadata
+                })
+
+            logger.log_info(f"Retrieved {len(chunks)} chunks for document {doc_id}", {
                 "doc_id": doc_id,
-                "content": content,
-                "metadata": metadata
-            }
+                "chunks_retrieved": len(chunks)
+            })
+            return chunks
+
         except Exception as e:
             logger.log_error(f"Failed to get document: {doc_id}", {"error": str(e)})
             return None
@@ -139,40 +165,32 @@ class DocumentStore:
             logger.log_error("Failed to encode document", {"error": str(e), "text_len": len(text)})
             raise
 
-    async def search_by_text(self,
-                           query_text: str,
-                           k: int = 5,
-                           filter_types: Optional[List[DocumentType]] = None,
-                           use_hyde: bool = False) -> List[Dict[str, Any]]:
+    async def search_by_text(self, 
+                            query_text: str, 
+                            k: int = 5, 
+                            filter_types: Optional[List[DocumentType]] = None, 
+                            embedding_type: str = "none") -> List[Dict[str, Any]]:
         """
-        Search by text query, supporting both RAG and HyDE approaches.
-        
-        Args:
-            query_text: Search query or hypothetical document
-            k: Number of results to return
-            filter_types: Optional list of document types to include
-            use_hyde: Whether to use HyDE encoding
-            
-        Returns:
-            List of relevant chunks with metadata and scores
+        Handle embedding_type directly: 'none', 'query', 'document'.
         """
         try:
-            # Encode query appropriately
-            query_vector = await (
-                self.encode_document(query_text) if use_hyde
-                else self.encode_query(query_text)
-            )
+            # Handle embedding based on type
+            if embedding_type == "query":
+                query_vector = await self.encode_query(query_text)
+            elif embedding_type == "document":
+                query_vector = await self.encode_document(query_text)
+            elif embedding_type == "none":
+                response = self.embedding_client.embed([query_text])
+                query_vector = np.array(response.embeddings[0])
+            else:
+                raise ValueError(f"Invalid embedding type: {embedding_type}")
             
-            return await self.search_similar(
-                query_vector,
-                k=k,
-                filter_types=filter_types
-            )
-            
+            # Perform the similarity search
+            return await self.search_similar(query_vector, k=k, filter_types=filter_types)
         except Exception as e:
             logger.log_error("Failed text search", {
                 "error": str(e),
-                "use_hyde": use_hyde,
+                "embedding_type": embedding_type,
                 "filter_types": filter_types
             })
             raise
@@ -189,7 +207,7 @@ class DocumentStore:
             query_vector: Query embedding
             k: Number of results
             filter_types: Optional document types to include
-            
+        
         Returns:
             List of matched chunks with scores and metadata
         """
@@ -198,9 +216,10 @@ class DocumentStore:
             query_vector = np.array(query_vector).astype('float32').reshape(1, -1)
             
             # Get extra results for filtering
+            search_k = k * 2 if filter_types else k
             distances, indices = self.vector_manager.index.search(
                 query_vector,
-                k * 2 if filter_types else k
+                search_k
             )
             
             results = []
@@ -209,21 +228,27 @@ class DocumentStore:
                     if idx == -1:  # No match
                         continue
                         
+                    # Modify the SQL query to retrieve both metadata and content
                     meta_row = conn.execute(
-                        "SELECT metadata FROM metadata WHERE vector_id = ?",
+                        "SELECT doc_id, chunk_id, metadata, content FROM metadata WHERE vector_id = ?",
                         (int(idx),)
                     ).fetchone()
                     
                     if meta_row:
-                        metadata = json.loads(meta_row[0])
+                        doc_id, chunk_id, metadata_json, content = meta_row
+                        metadata = json.loads(metadata_json)
+                        metadata['doc_id'] = doc_id
+                        metadata['chunk_id'] = chunk_id
+                        metadata['content'] = content
                         
                         # Apply type filter if specified
                         if (not filter_types or
                             DocumentType(metadata.get('type', '')) in filter_types):
                             results.append({
-                                'chunk_id': f"{metadata.get('doc_id')}_{metadata.get('chunk_index')}",
+                                'doc_id': doc_id,
+                                'chunk_id': chunk_id,
                                 'score': float(1 - dist),
-                                'content': metadata.get('text', ''),
+                                'content': content,  # Use the 'content' field
                                 'metadata': metadata
                             })
                             
@@ -253,98 +278,94 @@ class DocumentStore:
         """
         try:
             with sqlite3.connect(self.db_path) as conn:
+                # Modify the SQL query to retrieve both metadata and content
                 rows = conn.execute("""
-                    SELECT metadata 
+                    SELECT metadata, content
                     FROM metadata 
-                    WHERE doc_id LIKE ? 
+                    WHERE doc_id = ? 
                     ORDER BY json_extract(metadata, '$.chunk_index')
-                """, (f"{doc_id}%",)).fetchall()
+                """, (doc_id,)).fetchall()
                 
             if not rows:
                 raise ValueError(f"No document found: {doc_id}")
                 
             chunks = [json.loads(row[0]) for row in rows]
+            contents = [row[1] for row in rows]  # Retrieve 'content' from each row
             
             # Extract common metadata (from first chunk)
             metadata = chunks[0].copy()
-            for field in ['chunk_index', 'total_chunks', 'text']:
+            for field in ['chunk_id', 'doc_id', 'chunk_index', 'total_chunks']:
                 metadata.pop(field, None)
                 
             # Combine content in order
-            content = "\n".join(
-                chunk.get('text', '') for chunk in chunks
-            )
+            content = "\n".join(contents)
             
             logger.log_info(f"Reconstructed document: {doc_id}", {
                 "chunks": len(chunks)
             })
             
             return metadata, content
-            
+                
         except Exception as e:
             logger.log_error(f"Failed to reconstruct: {doc_id}", {"error": str(e)})
             raise
 
-    async def search_by_metadata(self,
-                               doc_type: Optional[DocumentType] = None,
-                               project_subtype: Optional[ProjectSubType] = None,
-                               other_subtype: Optional[OtherDocumentType] = None
-                               ) -> List[Dict[str, Any]]:
+    async def search_by_metadata(
+        self,
+        doc_type: Optional[DocumentType] = None,
+        project_subtype: Optional[ProjectSubType] = None,
+        other_subtype: Optional[OtherSubType] = None
+    ) -> List[Dict[str, Any]]:
         """
-        Search documents by type and optional subtypes.
+        Search individual document chunks by type and their respective subtypes.
         
         Args:
-            doc_type: Main document type
-            project_subtype: Subtype for project documents
-            other_subtype: Subtype for other documents
+            doc_type: Main document type (required).
+            project_subtype: Subtype for project documents.
+            other_subtype: Subtype for other documents.
             
         Returns:
-            List of matching documents with metadata
+            List of matching document chunks with metadata.
         """
         try:
-            query = "SELECT DISTINCT doc_id, metadata FROM metadata WHERE 1=1"
-            params = []
-            
-            # Filter by main document type
-            if doc_type:
-                query += " AND json_extract(metadata, '$.type') = ?"
-                params.append(doc_type.value)
-            
-            # Apply subtype filters based on document type
+            if doc_type not in DocumentType:
+                raise ValueError(f"Unsupported document type: {doc_type}")
+
+            # Modify the SQL query to select individual chunks
+            query = "SELECT chunk_id, json_extract(metadata, '$.total_chunks') AS total_chunks, metadata, content FROM metadata WHERE json_extract(metadata, '$.type') = ?"
+            params = [doc_type.value]
+
+            # Add subtype filters based on the document type
             if doc_type == DocumentType.PROJECT and project_subtype:
-                query += " AND json_extract(metadata, '$.subtype') = ?"
+                query += " AND json_extract(metadata, '$.sub_type') = ?"
                 params.append(project_subtype.value)
             elif doc_type == DocumentType.OTHER and other_subtype:
-                query += " AND json_extract(metadata, '$.subtype') = ?"
+                query += " AND json_extract(metadata, '$.sub_type') = ?"
                 params.append(other_subtype.value)
-            
+
             with sqlite3.connect(self.db_path) as conn:
                 rows = conn.execute(query, params).fetchall()
-            
-            documents = []
-            for doc_id, meta in rows:
+
+            chunks = []
+            for chunk_id, total_chunks, meta, content in rows:
                 metadata = json.loads(meta)
-                try:
-                    _, content = await self.reconstruct_document(doc_id)
-                    documents.append({
-                        "doc_id": doc_id,
-                        "metadata": metadata,
-                        "content": content
-                    })
-                except Exception as e:
-                    logger.log_error(f"Failed to reconstruct document: {doc_id}", 
-                                  {"error": str(e)})
-                    continue
-            
+                chunks.append({
+                    "doc_id": metadata.get("doc_id"),
+                    "chunk_id": chunk_id,
+                    "total_chunks": total_chunks,
+                    "content": content,
+                    "metadata": metadata
+                })
+
             logger.log_info("Metadata search completed", {
-                "doc_type": doc_type.value if doc_type else None,
+                "doc_type": doc_type.value,
                 "project_subtype": project_subtype.value if project_subtype else None,
                 "other_subtype": other_subtype.value if other_subtype else None,
-                "results": len(documents)
+                "results": len(chunks)
             })
-            
-            return documents
-            
+            logger.log_info("SQL Query Executed", {"query": query, "params": params})
+            return chunks
+
         except Exception as e:
             logger.log_error("Failed metadata search", {
                 "error": str(e),

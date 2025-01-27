@@ -2,7 +2,7 @@
 
 from enum import Enum
 from typing import Optional, List, Union, Dict
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 class DocumentType(str, Enum):
     EXPERIENCE = "experience"
@@ -10,7 +10,7 @@ class DocumentType(str, Enum):
     PROJECT = "project"
     OTHER = "other"
 
-class OtherDocumentType(str, Enum):
+class OtherSubType(str, Enum):
     COVER_LETTER = "cover-letter"
     PUBLICATION_SPEAKING = "publication-speaking"
     RECOMMENDATION = "recommendation"
@@ -138,7 +138,7 @@ class Verification(BaseModel):
 
 class CoverLetterDocument(BaseDocument):
     type: DocumentType = DocumentType.OTHER
-    subtype: OtherDocumentType = OtherDocumentType.COVER_LETTER
+    sub_type: OtherSubType = OtherSubType.COVER_LETTER
     target: str
     role: str
     desired_characteristics: List[str]
@@ -147,7 +147,7 @@ class CoverLetterDocument(BaseDocument):
 
 class PublicationSpeakingDocument(BaseDocument):
     type: DocumentType = DocumentType.OTHER
-    subtype: OtherDocumentType = OtherDocumentType.PUBLICATION_SPEAKING
+    sub_type: OtherSubType = OtherSubType.PUBLICATION_SPEAKING
     date: str
     venue: str
     format: SpeakingFormat
@@ -158,7 +158,7 @@ class PublicationSpeakingDocument(BaseDocument):
 
 class RecommendationDocument(BaseDocument):
     type: DocumentType = DocumentType.OTHER
-    subtype: OtherDocumentType = OtherDocumentType.RECOMMENDATION
+    sub_type: OtherSubType = OtherSubType.RECOMMENDATION
     author: Author
     period: Period
     context: List[Union[str, Dict[str, Union[str, List[str]]]]]
@@ -168,7 +168,7 @@ class RecommendationDocument(BaseDocument):
 
 class ThoughtLeadershipDocument(BaseDocument):
     type: DocumentType = DocumentType.OTHER
-    subtype: OtherDocumentType = OtherDocumentType.THOUGHT_LEADERSHIP
+    sub_type: OtherSubType = OtherSubType.THOUGHT_LEADERSHIP
     domain: str
     key_principles: List[str]
     applications: List[str]
@@ -190,14 +190,14 @@ class DocumentFactory:
             doc.validate_sub_type_fields()
             return doc
         elif doc_type == DocumentType.OTHER:
-            subtype = data.get('subtype')
-            if subtype == OtherDocumentType.COVER_LETTER:
+            sub_type = data.get('sub_type')
+            if sub_type == OtherSubType.COVER_LETTER:
                 return CoverLetterDocument(**data)
-            elif subtype == OtherDocumentType.PUBLICATION_SPEAKING:
+            elif sub_type == OtherSubType.PUBLICATION_SPEAKING:
                 return PublicationSpeakingDocument(**data)
-            elif subtype == OtherDocumentType.RECOMMENDATION:
+            elif sub_type == OtherSubType.RECOMMENDATION:
                 return RecommendationDocument(**data)
-            elif subtype == OtherDocumentType.THOUGHT_LEADERSHIP:
+            elif sub_type == OtherSubType.THOUGHT_LEADERSHIP:
                 return ThoughtLeadershipDocument(**data)
-            raise ValueError(f"Unknown other document subtype: {subtype}")
+            raise ValueError(f"Unknown other document sub_type: {sub_type}")
         raise ValueError(f"Unknown document type: {doc_type}")

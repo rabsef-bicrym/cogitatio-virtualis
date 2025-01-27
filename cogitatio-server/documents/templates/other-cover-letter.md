@@ -1,6 +1,6 @@
 ---
 type: other
-subtype: "cover-letter"
+sub_type: "cover-letter"
 target: "Company Name"
 role: "Senior AI Engineer"
 desired_characteristics:  

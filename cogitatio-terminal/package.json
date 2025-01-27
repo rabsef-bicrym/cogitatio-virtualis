@@ -1,0 +1,48 @@
+{
+  "name": "cogitatio-terminal",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "build:ts": "tsc",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@react-three/fiber": "^7.0.27",
+    "cookie": "^1.0.2",
+    "crt-terminal": "file:../../crt-terminal/packages/crt-terminal",
+    "gl-react": "^5.2.0",
+    "gl-react-dom": "^5.2.1",
+    "html2canvas": "^1.4.1",
+    "js-cookie": "^3.0.5",
+    "next": "12.3.4",
+    "next-session": "^4.0.5",
+    "react": "17.0.2",
+    "react-dom": "17.0.2",
+    "socket.io": "^4.8.1",
+    "three": "^0.133.1",
+    "ws": "^8.18.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@anthropic-ai/sdk": "^0.33.1",
+    "@prisma/client": "^6.2.1",
+    "@types/js-cookie": "^3.0.6",
+    "@types/node": "^20.17.6",
+    "@types/react": "^17.0.56",
+    "@types/react-dom": "^17.0.17",
+    "@types/ws": "^8.5.14",
+    "@typescript-eslint/eslint-plugin": "^8.12.2",
+    "@typescript-eslint/parser": "^8.12.2",
+    "eslint": "^8",
+    "eslint-config-next": "12.3.4",
+    "eslint-plugin-import": "^2.31.0",
+    "prettier": "^3.4.2",
+    "prisma": "^6.1.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^4.9.5",
+    "uuid": "^11.0.5"
+  }
+}

@@ -1,6 +1,6 @@
 ---
 type: other
-subtype: "thought-leadership"
+sub_type: "thought-leadership"
 title: "Framework for AI Integration in Legal Practice"
 domain: "Legal Technology"
 key_principles:        

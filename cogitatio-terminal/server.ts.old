@@ -1,0 +1,77 @@
+// server.ts
+
+import { createServer, IncomingMessage, ServerResponse } from 'http';
+import { parse, UrlWithParsedQuery } from 'url';
+import next from 'next';
+import { socketManager } from './pages/api/chat/webSocket';
+import { validateWebSocketSession, generateSessionCookie } from './lib/threads/session';
+
+const dev: boolean = process.env.NODE_ENV !== 'production';
+const app = next({ dev });
+const handle = app.getRequestHandler();
+
+const PORT: number = parseInt(process.env.PORT || '3000', 10);
+
+app.prepare().then(() => {
+  const server = createServer((req: IncomingMessage, res: ServerResponse) => {
+    if (!req.url) {
+      res.statusCode = 400;
+      res.end('Bad Request: URL is undefined');
+      return;
+    }
+
+    const parsedUrl: UrlWithParsedQuery = parse(req.url, true);
+    handle(req, res, parsedUrl);
+  });
+
+  // Handle WebSocket upgrades specifically for /api/ws
+  server.on('upgrade', async (req: IncomingMessage, socket: any, head: any) => {
+    const { url } = req;
+    console.log(`[Server] Received upgrade request for: ${url}`);
+    
+    if (url === '/ws') {
+      console.log('[Server] Processing WebSocket upgrade for /ws');
+      try {
+        // Validate or create session
+        const sessionId = await validateWebSocketSession(req);
+        
+        // If this is a new session, we need to set the cookie
+        // We can do this by adding a header to the upgrade response
+        if (!req.headers.cookie?.includes('cogitatio_session')) {
+          const cookieString = generateSessionCookie(sessionId);
+          socket.write(
+            'HTTP/1.1 101 Switching Protocols\r\n' +
+            'Upgrade: websocket\r\n' +
+            'Connection: Upgrade\r\n' +
+            `Set-Cookie: ${cookieString}\r\n\r\n`
+          );
+        }
+
+        // Attach sessionId to request for socketManager
+        (req as any).sessionId = sessionId;
+
+        // Handle the upgrade
+        socketManager.handleUpgrade(req, socket, head);
+      } catch (error) {
+        console.error('[WebSocket Upgrade] Session validation failed:', error);
+        socket.write('HTTP/1.1 500 Internal Server Error\r\n\r\n');
+        socket.destroy();
+        return;
+      }
+    } else {
+      // Let Next.js handle other WebSocket connections (like HMR)
+      socket.destroy();
+    }
+  });
+
+  server.listen(PORT, (err?: Error) => {
+    if (err) {
+      console.error('Server failed to start:', err);
+      process.exit(1);
+    }
+    console.log(`> Ready on http://localhost:${PORT}`);
+  });
+}).catch((err: Error) => {
+  console.error('Error preparing Next.js app:', err);
+  process.exit(1);
+});

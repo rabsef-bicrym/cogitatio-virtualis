@@ -1,5 +1,3 @@
-# cogitatio-virtualis/server/tools/db_explorer.py
-
 import argparse
 import sys
 from pathlib import Path
@@ -10,11 +8,16 @@ import json
 from typing import List, Dict, Any, Optional
 from tabulate import tabulate
 from cogitatio.utils.logging import ComponentLogger
+from cogitatio.document_processor import config  # Import your config module
 
 logger = ComponentLogger("db_explorer")
 
 class DatabaseExplorer:
-    def __init__(self, data_dir: str = "./data"):
+    def __init__(self, data_dir: Optional[Path] = None):
+        # Use data directory from config if not provided
+        if data_dir is None:
+            data_dir = config.DATA_DIR
+
         self.data_dir = Path(data_dir)
         self.index_path = self.data_dir / "vectors.index"
         self.db_path = self.data_dir / "metadata.db"
@@ -32,7 +35,7 @@ class DatabaseExplorer:
                 "SELECT vector_id, metadata FROM metadata WHERE doc_id LIKE ?",
                 (f"%{doc_id}%",)
             ).fetchall()
-            
+                
         return [
             {
                 "vector_id": row[0],
@@ -57,7 +60,7 @@ class DatabaseExplorer:
                     "SELECT metadata FROM metadata WHERE vector_id = ?",
                     (int(idx),)
                 ).fetchone()
-                
+                    
                 if meta:
                     results.append({
                         "vector_id": int(idx),
@@ -74,7 +77,7 @@ class DatabaseExplorer:
                 "SELECT vector_id, doc_id, metadata FROM metadata WHERE json_extract(metadata, '$.type') = ?",
                 (doc_type,)
             ).fetchall()
-            
+                
         return [
             {
                 "vector_id": row[0],
@@ -104,16 +107,16 @@ class DatabaseExplorer:
                 FROM metadata
                 GROUP BY doc_type
             """).fetchall()
-            
+                
             # Get total unique documents
             total_docs = conn.execute("""
                 SELECT COUNT(DISTINCT json_extract(metadata, '$.doc_id'))
                 FROM metadata
             """).fetchone()[0]
-            
+                
             # Get average chunks per document
             chunks_per_doc = self.index.ntotal / total_docs if total_docs > 0 else 0
-            
+                
             stats["documents"] = {
                 "total_unique_documents": total_docs,
                 "total_chunks": self.index.ntotal,
@@ -122,13 +125,41 @@ class DatabaseExplorer:
                     doc_type: {
                         "documents": doc_count,
                         "chunks": chunk_count,
-                        "avg_chunks": round(chunk_count/doc_count, 2) if doc_count > 0 else 0
+                        "avg_chunks": round(chunk_count / doc_count, 2) if doc_count > 0 else 0
                     }
                     for doc_type, doc_count, chunk_count in type_counts
                 }
             }
         
         return stats
+
+    def get_random_vector(self) -> Dict[str, Any]:
+        """Retrieve a random vector, its metadata, and the associated text."""
+        with sqlite3.connect(self.db_path) as conn:
+            # Get a random vector_id and its metadata from the database
+            row = conn.execute("""
+                SELECT vector_id, content, metadata 
+                FROM metadata 
+                ORDER BY RANDOM() 
+                LIMIT 1
+            """).fetchone()
+
+            if not row:
+                raise ValueError("No vectors found in the database.")
+            
+            vector_id = row[0]
+            raw_content = row[1]
+            metadata = json.loads(row[2])
+
+            # Assign "No text available" if content is None or empty
+            content = raw_content if raw_content else "No text available"
+        
+        return {
+            "vector_id": vector_id,
+            "metadata": metadata,
+            "text": content  # Include the associated text
+        }
+
 
 def format_results(results: List[Dict], format_type: str = 'table') -> str:
     """Format results for display"""
@@ -164,7 +195,9 @@ def format_results(results: List[Dict], format_type: str = 'table') -> str:
 
 def main():
     parser = argparse.ArgumentParser(description='Database Explorer for FAISS/SQLite Vector Store')
-    parser.add_argument('--data-dir', default='./data', help='Directory containing database files')
+    
+    # Remove the data-dir argument since we'll use config.py
+    # parser.add_argument('--data-dir', default='./data', help='Directory containing database files')
     
     subparsers = parser.add_subparsers(dest='command', help='Command to execute')
     
@@ -184,6 +217,9 @@ def main():
     type_parser = subparsers.add_parser('type', help='Search by document type')
     type_parser.add_argument('doc_type', help='Document type to search for')
     
+    # Random vector retrieval
+    subparsers.add_parser('random', help='Retrieve a random vector with its metadata and text')
+    
     # Format option for all commands
     parser.add_argument('--format', choices=['table', 'json'], default='table',
                        help='Output format')
@@ -191,27 +227,31 @@ def main():
     args = parser.parse_args()
     
     try:
-        explorer = DatabaseExplorer(args.data_dir)
+        explorer = DatabaseExplorer()
         
         if args.command == 'stats':
             stats = explorer.get_database_stats()
             print(format_results([stats], args.format))
-            
+                
         elif args.command == 'doc':
             results = explorer.get_metadata_by_doc_id(args.doc_id)
             print(format_results(results, args.format))
-            
+                
         elif args.command == 'similar':
             results = explorer.search_vectors(args.vector_id, args.k)
             print(format_results(results, args.format))
-            
+                
         elif args.command == 'type':
             results = explorer.search_by_content_type(args.doc_type)
             print(format_results(results, args.format))
-            
+                
+        elif args.command == 'random':
+            result = explorer.get_random_vector()
+            print(json.dumps(result, indent=2))
+                
         else:
             parser.print_help()
-            
+                
     except Exception as e:
         logger.log_error(f"Error during database exploration: {e}")
         print(f"Error: {e}", file=sys.stderr)

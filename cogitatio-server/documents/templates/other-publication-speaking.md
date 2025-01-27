@@ -1,6 +1,6 @@
 ---
 type: other
-subtype: "publication-speaking"
+sub_type: "publication-speaking"
 title: "AI Implementation Strategies in Legal Practice"
 date: "2024-03"
 venue: "Legal Tech Innovation Summit"

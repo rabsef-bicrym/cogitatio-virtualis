@@ -1,6 +1,6 @@
 ---
 type: other
-subtype: "recommendation"
+sub_type: "recommendation"
 title: "Recommendation from [Person Name]"
 author:
   name: "Jane Smith"

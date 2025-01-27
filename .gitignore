@@ -135,7 +135,6 @@ parts/
 sdist/
 develop-eggs/
 .installed.cfg
-lib/
 lib64/
 wheels/
 share/python-wheels/
@@ -174,3 +173,13 @@ ipython_config.py
 
 # Mac system files
 .DS_Store
+
+# Ignore everything in /data
+/cogitatio-server/data/*
+!/cogitatio-server/data/.gitignore  # Allow the .gitignore file itself
+
+# Ignore everything in /old_fakes
+/cogitatio-server/documents/templates/old_fakes/
+
+# Ignore firstconversation.md
+firstconversation.md

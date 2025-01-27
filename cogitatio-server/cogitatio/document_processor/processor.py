@@ -1,4 +1,4 @@
-# server/document_processor/processor.py
+# cogitatio-virtualis/cogitatio-server/cogitatio/document_processor/processor.py
 
 import yaml
 import uuid
@@ -34,8 +34,15 @@ class DocumentProcessor:
             vector_manager: Vector storage manager instance
         """
         try:
+            logger.log_info("Initializing DocumentProcessor")
+            
             # Get Voyage config and initialize client
             voyage_config = get_voyage_client_config()
+            logger.log_info("Loaded VoyageAI configuration", {
+                "model": voyage_config.get("model"),
+                "api_key_present": bool(voyage_config.get("api_key"))
+            })
+            
             self.embedding_client = voyageai.Client(
                 api_key=voyage_config["api_key"]
             )
@@ -46,14 +53,14 @@ class DocumentProcessor:
             
             # Validate paths on startup
             validate_paths()
-            logger.log_info("Document processor initialized", {
+            logger.log_info("DocumentProcessor initialized successfully", {
                 "model": self.model,
                 "batch_size": BATCH_SIZE,
                 "max_tokens": MAX_TOKENS
             })
             
         except Exception as e:
-            logger.log_error("Failed to initialize document processor", {"error": str(e)})
+            logger.log_error("Failed to initialize DocumentProcessor", {"error": str(e)})
             raise
 
     def process_all_documents(self, force_reprocess: bool = False) -> None:
@@ -69,6 +76,7 @@ class DocumentProcessor:
         
         if force_reprocess:
             try:
+                logger.log_info("Force reprocess requested. Resetting vector store and clearing document map.")
                 # Clear existing document mapping when doing full reprocess
                 self.document_map.clear()
                 # Reset the vector store
@@ -82,13 +90,17 @@ class DocumentProcessor:
         errors = 0
         
         try:
-            # First, identify all valid markdown files
+            # Identify all valid markdown files
             markdown_files = [
                 path for path in DOCUMENTS_DIR.rglob("*.md")
                 if not any(fnmatch(str(path), pattern) for pattern in IGNORED_PATHS)
             ]
+            logger.log_info("Found markdown files", {
+                "total_files": len(markdown_files),
+                "ignored_patterns": IGNORED_PATHS
+            })
             
-            # If reprocessing, remove any documents not in the current file set
+            # Handle obsolete documents during reprocess
             if force_reprocess:
                 current_paths = {str(path) for path in markdown_files}
                 for file_path in list(self.document_map.keys()):
@@ -96,18 +108,23 @@ class DocumentProcessor:
                         doc_id = self.document_map.pop(file_path)
                         try:
                             self.vector_manager.remove_document(doc_id)
-                            logger.log_info(f"Removed obsolete document: {file_path}")
+                            logger.log_info("Removed obsolete document", {"file_path": file_path})
                         except Exception as e:
-                            logger.log_error(f"Failed to remove document: {file_path}", {"error": str(e)})
+                            logger.log_error("Failed to remove obsolete document", {
+                                "file_path": file_path, "error": str(e)
+                            })
             
             # Process each markdown file
             for path in markdown_files:
                 try:
+                    logger.log_info("Processing individual document", {"file_path": str(path)})
                     self.process_document(str(path))
                     processed += 1
                 except Exception as e:
                     errors += 1
-                    logger.log_error(f"Failed to process {path}", {"error": str(e)})
+                    logger.log_error("Failed to process document", {
+                        "file_path": str(path), "error": str(e)
+                    })
                     
             logger.log_info("Batch processing complete", {
                 "processed": processed,
@@ -116,7 +133,7 @@ class DocumentProcessor:
             })
             
         except Exception as e:
-            logger.log_error("Failed during batch processing", {"error": str(e)})
+            logger.log_error("Error during batch document processing", {"error": str(e)})
             raise
 
     def process_document(self, file_path: str) -> str:
@@ -128,16 +145,20 @@ class DocumentProcessor:
             
         Returns:
             document_id: Unique identifier for the processed document
-            
+        
         Raises:
             ValueError: If document format is invalid
             Exception: For embedding or storage errors
         """
-        logger.log_info(f"Processing document: {file_path}")
+        logger.log_info("Processing document", {"file_path": file_path})
         
         try:
             # Parse document
             content = Path(file_path).read_text()
+            if not content:
+                logger.log_error("File is empty or unreadable", {"file_path": file_path})
+                raise ValueError("File content is empty")
+            
             document, content = self._parse_document(content, file_path)
             
             # Generate or retrieve document ID
@@ -147,11 +168,15 @@ class DocumentProcessor:
             if file_path in self.document_map:
                 try:
                     self.vector_manager.remove_document(doc_id)
+                    logger.log_info("Removed existing vectors for document", {"file_path": file_path})
                 except Exception as e:
-                    logger.log_error(f"Failed to remove existing vectors for {file_path}", {"error": str(e)})
+                    logger.log_error("Failed to remove existing vectors", {
+                        "file_path": file_path, "error": str(e)
+                    })
             
             # Update document map
             self.document_map[file_path] = doc_id
+            logger.log_info("Document map updated", {"file_path": file_path, "doc_id": doc_id})
             
             # Process content into chunks
             chunks = self._prepare_chunks(content, doc_id, document, file_path)
@@ -159,139 +184,144 @@ class DocumentProcessor:
             # Process chunks in batches
             self._process_chunks(chunks)
             
-            logger.log_info(f"Successfully processed document: {file_path}", {
-                "doc_id": doc_id,
-                "chunks": len(chunks)
+            logger.log_info("Successfully processed document", {
+                "file_path": file_path, "doc_id": doc_id, "chunks": len(chunks)
             })
             return doc_id
             
         except Exception as e:
-            logger.log_error(f"Failed to process document: {file_path}", 
-                           {"error": str(e), "doc_type": self._get_doc_type(file_path)})
+            logger.log_error("Failed to process document", {
+                "file_path": file_path, "error": str(e), "doc_type": self._get_doc_type(file_path)
+            })
             raise
 
-    # [Rest of the methods remain the same as in your current implementation]
     def _parse_document(self, content: str, file_path: str) -> Tuple[BaseDocument, str]:
         """Parse and validate document frontmatter and content."""
+        logger.log_info("Parsing document", {"file_path": file_path})
         parts = content.split("---", 2)
         if len(parts) < 3:
+            logger.log_error("Invalid document format", {"file_path": file_path})
             raise ValueError(f"Invalid document format in {file_path}")
             
         try:
-            # Parse and validate frontmatter
             metadata = yaml.safe_load(parts[1])
             if "type" not in metadata:
                 metadata["type"] = self._get_doc_type(file_path)
                 
             document = DocumentFactory.create_document(metadata)
+            logger.log_info("Parsed document metadata", {
+                "file_path": file_path, "metadata": metadata
+            })
             return document, parts[2].strip()
             
         except Exception as e:
-            logger.log_error(f"Failed to parse document: {file_path}", 
-                           {"error": str(e), "content": parts[1][:100]})
+            logger.log_error("Failed to parse document metadata", {
+                "file_path": file_path, "error": str(e), "frontmatter": parts[1][:100]
+            })
             raise
 
     def _get_doc_type(self, file_path: str) -> str:
         """Extract document type from path."""
-        return Path(file_path).parent.name
+        doc_type = Path(file_path).parent.name
+        logger.log_info("Determined document type", {"file_path": file_path, "doc_type": doc_type})
+        return doc_type
 
     def _split_sections(self, content: str) -> List[str]:
         """Split content into sections by markdown headers."""
-        logger.log_info("=== Processing Content ===", {
+        logger.log_info("Splitting content into sections", {
             "content_preview": content[:100],
             "total_length": len(content)
         })
         
         sections = []
         current_section = []
-        
-        for line in content.split("\n"):
+
+        for line in content.splitlines():  # Split by lines, not just '\n'
+            logger.log_info("line: %r", line)  # Log each line for debugging
+            line = line.strip()  # Remove leading/trailing whitespace
             if line.startswith("## "):
-                # Add the previous section before starting a new one
                 if current_section:
                     sections.append("\n".join(current_section))
-                # Start new section WITH the header
                 current_section = [line]
             else:
                 current_section.append(line)
         
-        # Don't forget the last section
         if current_section:
             sections.append("\n".join(current_section))
         
-        logger.log_info("=== Completed Processing ===", {
+        logger.log_info("Completed splitting sections", {
             "total_sections": len(sections),
             "section_sizes": [len(s) for s in sections]
         })
-        
         return sections if sections else [content]
 
-    def _prepare_chunks(self, 
-                    content: str, 
-                    doc_id: str, 
-                    document: BaseDocument,
-                    file_path: str) -> List[Dict]:
+
+    def _prepare_chunks(self, content: str, doc_id: str, document: BaseDocument, file_path: str) -> List[Dict]:
         """Prepare document chunks with metadata."""
+        logger.log_info("Preparing chunks for document", {
+            "file_path": file_path, "doc_id": doc_id
+        })
         sections = self._split_sections(content)
         chunks = []
-        
         metadata = document.dict(exclude_none=True)
         
         for idx, section in enumerate(sections):
+            chunk_id = f"{doc_id}_{idx}"  # Unique chunk_id based on doc_id and chunk index
             chunk = {
-                "id": f"{doc_id}_{idx}",
-                "text": section,
+                "id": doc_id,  # 'id' corresponds to the document ID
+                "chunk_id": chunk_id,  # Unique identifier for the chunk
+                "content": section,
                 "metadata": {
                     "doc_id": doc_id,
+                    "chunk_id": chunk_id,  # Include chunk_id in metadata if needed
                     "chunk_index": idx,
                     "total_chunks": len(sections),
                     "source_file": file_path,
-                    "chunk_text": section,  # Store just this chunk's text
                     **metadata
                 }
             }
             chunks.append(chunk)
+            logger.log_info("Prepared chunk", {
+                "chunk_id": chunk_id, "content_preview": section[:100]
+            })
         
+        logger.log_info("All chunks prepared", {
+            "total_chunks": len(chunks), "file_path": file_path
+        })
         return chunks
 
     def _process_chunks(self, chunks: List[Dict]) -> None:
         """Generate embeddings for chunks and store them."""
+        logger.log_info("Starting chunk processing", {
+            "total_chunks": len(chunks)
+        })
         for i in range(0, len(chunks), BATCH_SIZE):
             batch = chunks[i:i + BATCH_SIZE]
-            
             try:
-                # Generate embeddings
-                texts = [chunk["text"] for chunk in batch]
+                texts = [chunk["content"] for chunk in batch]
                 embeddings_response = self.embedding_client.embed(
                     texts,
                     model=self.model,
                     input_type="document"
                 )
                 
-                # Prepare vectors for storage
                 vectors = []
                 for chunk, embedding in zip(batch, embeddings_response.embeddings):
                     vectors.append({
-                        "id": chunk["id"],
+                        "id": chunk["id"],  # Document ID
+                        "chunk_id": chunk["chunk_id"],  # Unique Chunk ID
                         "values": embedding,
-                        "metadata": chunk["metadata"]
+                        "metadata": chunk["metadata"],
+                        "content": chunk["content"]
                     })
                 
-                # Store vectors
                 self.vector_manager.store_vectors(vectors)
-                
-                logger.log_info(f"Processed chunk batch", {
-                    "batch_size": len(batch),
-                    "start_chunk": i
+                logger.log_info("Processed chunk batch", {
+                    "batch_size": len(batch), "start_index": i
                 })
                 
             except Exception as e:
-                logger.log_error(
-                    "Failed to process chunk batch",
-                    {
-                        "error": str(e),
-                        "chunk_ids": [c["id"] for c in batch],
-                        "batch_size": len(batch)
-                    }
-                )
+                logger.log_error("Failed to process chunk batch", {
+                    "error": str(e), "batch_size": len(batch)
+                })
                 raise

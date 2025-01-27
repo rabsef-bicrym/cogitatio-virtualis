@@ -44,7 +44,7 @@ The project embodies several core principles:
    - Bridging technical and poetic domains
 
 2. **Self-Aware Implementation**
-   - System that documents itself
+   - System has access to some of its own documentation, as system itself is an example project for the portfolio
    - Demonstrates AI implementation while being AI-powered
    - Speaks in procedurally generated poetry
 
@@ -67,13 +67,13 @@ The project embodies several core principles:
 ### Frontend (Cogitation Terminal)
 - ✅ Boot Sequence
 - ✅ Error Handling [Basic]
-- 🟨 Main Loop [In Progress]
+- ✅ Main Loop [In Progress]
 - ❌ Testing [Not Started]
 
 ### Backend (Cogitatio Server)
 - ✅ Vector Store
 - ✅ Document Processing
-- 🟨 API Layer [In Progress]
+- ✅ API Layer [In Progress]
 - ❌ Testing [Not Started]
 
 ## Getting Started
