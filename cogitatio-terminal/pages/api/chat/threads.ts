@@ -20,6 +20,10 @@ interface ThreadMessage {
   timestamp: string
 }
 
+export const config = {
+  runtime: 'nodejs',
+};
+
 // Convert a DB row into a ThreadMessage
 function parseDbMessage(dbMsg: dbThreadMessage): ThreadMessage {
   let parsed: ContentBlock[] = []
@@ -186,16 +190,19 @@ async function parseAllAssistantRepliesSinceLastUserMessage(sessionId: string): 
 }
 
 /**
- * calls claude in a loop until it returns no more toolUse or we hit a max iteration
+ * Modified Claude handler with streaming support
  */
-async function handleClaudeResponse(sessionId: string): Promise<void> {
+export async function handleClaudeResponse(
+  sessionId: string,
+  onProgress: (message: string, eventType: 'partial' | 'complete') => Promise<void>
+): Promise<void> {
   const MAX_TURNS = 12
   let turnCount = 0
 
   while (turnCount < MAX_TURNS) {
     turnCount++
 
-    // fetch entire conversation each iteration
+    // Fetch entire conversation each iteration
     const entireThread = await getThreadMessages(sessionId)
     const { contentBlocks, reply, toolUse } = await claudeApi.chat(
       entireThread.map((m) => ({
@@ -208,7 +215,6 @@ async function handleClaudeResponse(sessionId: string): Promise<void> {
     const correctedBlocks = fixContentBlocks(contentBlocks)
 
     // If Claude provided no <reply>, add a fallback text block
-    // (we do this *after* we've already fixed everything)
     if (!reply) {
       correctedBlocks.push({
         type: 'text',
@@ -218,6 +224,17 @@ async function handleClaudeResponse(sessionId: string): Promise<void> {
 
     // Store all assistant blocks in the DB
     await storeMessage(sessionId, 'assistant', correctedBlocks)
+
+    // Extract and stream immediate reply
+    const assistantReply = parseAssistantReply(correctedBlocks)
+    if (assistantReply) {
+      if (toolUse) {
+        await onProgress(assistantReply, 'partial')
+      } else {
+        await onProgress(assistantReply, 'complete')
+        break
+      }
+    }
 
     if (toolUse) {
       // Determine the slash command
@@ -273,10 +290,10 @@ async function handleClaudeResponse(sessionId: string): Promise<void> {
         }
       }
 
-      // run slash command
+      // Run slash command and notify client
       const toolOutcome = await handleHardCommand(commandStr, true)
 
-      // store the result in the conversation
+      // Store the result in the conversation
       const toolResultBlock: ToolResultBlock = {
         type: 'tool_result',
         tool_use_id: toolUse.id,
@@ -284,7 +301,7 @@ async function handleClaudeResponse(sessionId: string): Promise<void> {
       }
       await storeMessage(sessionId, 'user', [toolResultBlock])
     } else {
-      // No more tool use; break
+      // await onProgress(assistantReply, 'complete')
       break
     }
   }
@@ -292,17 +309,18 @@ async function handleClaudeResponse(sessionId: string): Promise<void> {
   if (turnCount >= MAX_TURNS) {
     console.warn('Reached max iteration during handleClaudeResponse - possible infinite loop avoided.')
   }
+
+  return
 }
 
 /**
- * The main API route
+ * The main API route with SSE streaming
  */
 export default withSessionMiddleware(async function threadsHandler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  // On first request the cookie won't exist yet, but will be set in the response
-  // We need to read it from the response headers
+  // Session handling remains identical
   const sessionId = req.cookies?.cogitatio_session || 
                    res.getHeader('Set-Cookie')?.toString().match(/cogitatio_session=([^;]+)/)?.[1];
 
@@ -315,6 +333,7 @@ export default withSessionMiddleware(async function threadsHandler(
   }
 
   if (req.method === 'GET') {
+    // GET handler remains unchanged
     try {
       const messages = await prisma.threadMessage.findMany({
         where: { sessionId },
@@ -336,79 +355,81 @@ export default withSessionMiddleware(async function threadsHandler(
   }
 
   if (req.method === 'POST') {
-    const { command } = req.body as { command?: string }
-    if (!command || typeof command !== 'string') {
-      return res.status(400).json({
-        success: false,
-        message: 'Missing or invalid "command" in request body',
-      })
-    }
-  
+    // Set SSE headers
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
+    res.flushHeaders(); // Send headers immediately
+
+    const sendEvent = (data: object) => {
+      res.write(`data: ${JSON.stringify(data)}\n\n`);
+    };
+
     try {
-      // If it's a slash command typed by the user:
+      const { command } = req.body as { command?: string }
+      if (!command || typeof command !== 'string') {
+        sendEvent({ success: false, message: 'Missing or invalid command' });
+        return res.end();
+      }
+
+      // Handle slash commands
       if (command.startsWith('/')) {
-        const slashResp = await handleHardCommand(command)
-  
+        const slashResp = await handleHardCommand(command);
+        
         if (slashResp.success && slashResp.data) {
-          // Convert the data to a string (assuming JSON.stringify for consistency)
-          const dataString = JSON.stringify(slashResp.data, null, 2)
-  
-          // Append the command and the data to the user's message
+          const dataString = JSON.stringify(slashResp.data, null, 2);
           const dataBlock: TextBlock = {
             type: 'text',
             text: `<command_output_message>\n${slashResp.message}\n</command_output_message>\n<data>\n${dataString}\n</data>`,
           }
-          await appendUserText(sessionId, command, [dataBlock])
+          await appendUserText(sessionId, command, [dataBlock]);
         } else {
-          // store the slash command in conversation
-          await appendUserText(sessionId, command)
+          await appendUserText(sessionId, command);
         }
-  
+
         if (!slashResp.success && slashResp.data?.recoverable_failure) {
-          // if slash command is recoverable, treat as normal text
-          const fallbackAssistantText = `<reply>Could not run "${command}" as slash. Using fallback to LLM.</reply>`
-          await storeMessage(sessionId, 'assistant', [{ type: 'text', text: fallbackAssistantText }])
-  
-          // now let Claude handle it
-          await handleClaudeResponse(sessionId)
-  
-          // parse out all new <reply> blocks
-          const finalReply = await parseAllAssistantRepliesSinceLastUserMessage(sessionId)
-  
-          return res.status(200).json({
-            success: true,
-            message: finalReply,
-          })
+          // Fallback to LLM with streaming
+          await storeMessage(sessionId, 'assistant', [{ 
+            type: 'text', 
+            text: `<reply>Could not run "${command}" as slash. Using fallback to LLM.</reply>` 
+          }]);
+
+          await handleClaudeResponse(sessionId, async (message, eventType) => {
+            sendEvent({ type: eventType, message });
+          });
+
         } else {
-          return res.status(200).json({
+          sendEvent({
+            type: 'complete',
             success: slashResp.success,
             message: slashResp.message,
-            data: slashResp.success ? slashResp.data : undefined,
-          })
+            data: slashResp.success ? slashResp.data : undefined
+          });
         }
+        return res.end();
       }
-  
-      // otherwise, it's normal user text
-      await appendUserText(sessionId, command)
-      await handleClaudeResponse(sessionId)
-  
-      // gather all new <reply> blocks
-      const final = await parseAllAssistantRepliesSinceLastUserMessage(sessionId)
-  
-      return res.status(200).json({
-        success: true,
-        message: final,
-      })
+
+      // Handle normal text input with streaming
+      await appendUserText(sessionId, command);
+      
+      await handleClaudeResponse(sessionId, async (message, eventType) => {
+        sendEvent({ type: eventType, message });
+      });
+
     } catch (err: any) {
-      console.error('[threadsHandler POST]', err)
-      return res.status(500).json({
+      console.error('[threadsHandler POST]', err);
+      sendEvent({
+        type: 'error',
         success: false,
-        message: `Server error: ${err.message || err}`,
-      })
+        message: `Server error: ${err.message || err}`
+      });
     }
+    
+    return res.end();
   }
 
-  // otherwise
+  // Handle other methods
   return res.status(405).json({
     success: false,
     message: `Method ${req.method} not allowed`,

@@ -163,7 +163,8 @@ export class ChatController extends BaseController {
   }
 
   /**
-   * Dispatches the input to the server via a POST request to the /api/chat/hardCommands endpoint.
+   * Dispatches the input to the server via a POST request to the /api/chat/threads endpoint.
+   * Now handles streaming responses via SSE.
    * @param command - The full command string.
    */
   private async dispatchCommand(command: string): Promise<void> {
@@ -187,21 +188,50 @@ export class ChatController extends BaseController {
 
       clearTimeout(timeout);
 
-      const result = await response.json();
-
-      if (response.ok && result.success) {
-        console.group(`[Command Response] ${command}`);
-        console.groupEnd();
-        if (result.message) {
-          await this.print(sendMessage(result.message, 'system'));
-        }
-        if (result.data) {
-          console.log('[Command Data] The following data has been added to the context:', result.data);
-        }
-      } else {
-        console.log(result);
-        await this.print(sendMessage(`${result.message}`, 'system'));
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Unknown error occurred');
       }
+
+      // Handle SSE streaming
+      if (response.body) {
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder('utf-8');
+        let buffer = '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+
+          // Split the buffer by double newline which indicates the end of an SSE event
+          let eventBoundary = buffer.indexOf('\n\n');
+          while (eventBoundary !== -1) {
+            const eventString = buffer.slice(0, eventBoundary);
+            buffer = buffer.slice(eventBoundary + 2);
+
+            // Parse the event
+            const eventLines = eventString.split('\n');
+            const eventData = eventLines
+              .filter(line => line.startsWith('data: '))
+              .map(line => line.replace(/^data: /, ''))
+              .join('');
+
+            if (eventData) {
+              try {
+                const event = JSON.parse(eventData);
+                await this.handleSSEEvent(event);
+              } catch (parseError) {
+                console.error('[ChatController] Failed to parse SSE event:', parseError);
+              }
+            }
+
+            eventBoundary = buffer.indexOf('\n\n');
+          }
+        }
+      }
+
     } catch (error: unknown) {
       if (error instanceof Error) {
         if (error.name === 'AbortError') {
@@ -227,6 +257,58 @@ export class ChatController extends BaseController {
     } finally {
       this.state.isProcessing = false;
       this.setLoading(false);
+    }
+  }
+
+  /**
+   * Handles individual SSE events based on their type.
+   * @param event - The SSE event object.
+   */
+  private async handleSSEEvent(event: any): Promise<void> {
+    const { type, chunk, success, message, data } = event;
+
+    console.log(event)
+
+    switch (type) {
+      case 'partial':
+        if (message) {
+          await this.print(sendMessage(message, 'system'));
+        }
+        break;
+
+      case 'complete':
+        if (success) {
+          if (message) {
+            await this.print(sendMessage(message, 'system'));
+          }
+          if (data) {
+            console.log('[Command Data] The following data has been added to the context:', data);
+          }
+          // Optionally call onChatComplete callback
+          if (this.config.onChatComplete) {
+            this.config.onChatComplete();
+          }
+        } else {
+          if (message) {
+            await this.print(sendMessage(message, 'system'));
+          }
+          if (data && data.recoverable_failure) {
+            await this.print(
+              sendMessage('Recoverable failure occurred. Please try your command again.', 'system'),
+            );
+          }
+        }
+        break;
+
+      case 'error':
+        if (message) {
+          await this.print(sendMessage(`Error: ${message}`, 'system'));
+        }
+        break;
+
+      default:
+        console.warn(`[ChatController] Unknown SSE event type: ${type}`);
+        break;
     }
   }
 
@@ -288,8 +370,8 @@ export class ChatController extends BaseController {
         words: [
           {
             type: 'text' as const,
-            characters: `$
-              {this.state.inputHistory.length - validCount + i + 1
+            characters: `${
+              this.state.inputHistory.length - validCount + i + 1
             }. ${cmd}`,
           },
         ],
