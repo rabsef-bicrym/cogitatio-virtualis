@@ -124,7 +124,7 @@ User Input → Terminal Interface → Vector Search → Gen AI → In-Character 
 For detailed setup and development guidelines, see:
 
 - [COGITATIO README](./cogitatio-server/README.md)
-- [VIRTUALIS README](./cogitation-terminal/README.md)
+- [VIRTUALIS README](./virtualis-terminal/README.md)
 
 ## Future Directions
 
