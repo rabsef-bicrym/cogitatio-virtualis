@@ -1,0 +1,57 @@
+/* cogitatio-virtualis/virtualis-terminal/components/Terminal/styles/asciiStyles.module.css */
+
+.ascii-container {
+  position: relative;
+  color: #00ff00;
+  white-space: pre;
+  font-size: 12px;
+  line-height: 1.2;
+  padding: 20px;
+}
+
+.ascii-line {
+  position: relative;
+  opacity: 0;
+  height: 1.2em;
+  animation: asciiPrintLine 0.1s linear forwards;
+}
+
+@keyframes asciiPrintLine {
+  0% {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  50% {
+    opacity: 0.5;
+    text-shadow: 2px 2px 8px rgba(0, 255, 0, 0.5);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.ascii-char {
+  display: inline-block;
+  opacity: 0;
+  animation: asciiGlowChar 0.5s ease-out forwards;
+  text-shadow: 0 0 5px rgba(0, 255, 0, 0.5);
+}
+
+@keyframes asciiGlowChar {
+  0% {
+    opacity: 0;
+    transform: scale(1.5);
+    filter: blur(4px);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(1.2);
+    filter: blur(2px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+    filter: blur(0);
+  }
+}
