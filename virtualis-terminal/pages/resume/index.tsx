@@ -1,5 +1,3 @@
-// cogitatio-virtualis/virtualis-terminal/pages/resume/index.tsx
-
 import { useEffect } from 'react';
 
 export default function PDFPage() {
@@ -8,7 +6,12 @@ export default function PDFPage() {
   }, []);
 
   const printPDF = () => {
-    window.print();
+    const pdfWindow = window.open('/resume.pdf', '_blank');
+    if (pdfWindow) {
+      setTimeout(() => {
+        pdfWindow.print();
+      }, 500); // Delay ensures the PDF fully loads before print
+    }
   };
 
   const closeWindow = () => {
