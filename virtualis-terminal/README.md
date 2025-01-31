@@ -1,6 +1,6 @@
-# COGITATIO VIRTUALIS - Cogitation Terminal
+# COGITATIO VIRTUALIS - Virtualis Terminal
 
-A neural terminal interface merging traditional command-line aesthetics with modern AI capabilities. The Cogitation Terminal provides a retro-futuristic interface for AI-powered document exploration and interaction.
+A neural terminal interface merging traditional command-line aesthetics with modern AI capabilities. The Virtualis Terminal provides a retro-futuristic interface for AI-powered document exploration and interaction.
 
 ## Project Status
 - **(✓_✓) Boot Sequence**
@@ -31,7 +31,7 @@ A neural terminal interface merging traditional command-line aesthetics with mod
 ### Core Components
 
 #### Terminal System
-- `CogitationTerminal`: Main component orchestrating the terminal experience
+- `VirtualisTerminal`: Main component orchestrating the terminal experience
 - `TerminalFrame`: Responsive container with CRT effects, links to additional resources
 - Controller-based architecture for state management
 - Event queue system for operation sequencing

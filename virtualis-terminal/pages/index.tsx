@@ -3,7 +3,7 @@
 import React from 'react';
 import Head from 'next/head';
 import dynamic from 'next/dynamic';
-import { CogitationTerminal } from '@/components/Terminal/CogitationTerminal';
+import { VirtualisTerminal } from '@/components/Terminal/VirtualisTerminal';
 
 
 
@@ -18,7 +18,7 @@ export default function Home() {
       </Head>
 
       <main className="terminal-container">
-        <CogitationTerminal />
+        <VirtualisTerminal />
       </main>
 
       <style jsx>{`

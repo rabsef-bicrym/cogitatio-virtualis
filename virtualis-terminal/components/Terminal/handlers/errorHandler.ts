@@ -86,7 +86,7 @@ export const createErrorDisplay = (
   createEmptyLine(true),
 ];
 
-// Updated error handler for CogitationTerminal
+// Updated error handler for VirtualisTerminal
 export const handleError = async ({
   error,
   controller,
@@ -102,7 +102,7 @@ export const handleError = async ({
   handleModeTransition: (mode: string, error?: Error) => void;
   performRecovery: () => Promise<void>;
 }): Promise<void> => {
-  console.error('[CogitationTerminal] Error:', error);
+  console.error('[VirtualisTerminal] Error:', error);
 
   // Update state for loading
   setTerminalState((prev) => ({
@@ -117,7 +117,7 @@ export const handleError = async ({
       await controller.unmount();
     } catch (unmountError) {
       console.error(
-        '[CogitationTerminal] Unmount error during error handling:',
+        '[VirtualisTerminal] Unmount error during error handling:',
         unmountError,
       );
     }

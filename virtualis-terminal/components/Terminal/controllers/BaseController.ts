@@ -38,7 +38,7 @@ export abstract class BaseController implements Controller {
   }
 
   public handleError(error: Error): void {
-    // Propagate errors up to CogitationTerminal for handling
+    // Propagate errors up to VirtualisTerminal for handling
     throw error;
   }
 

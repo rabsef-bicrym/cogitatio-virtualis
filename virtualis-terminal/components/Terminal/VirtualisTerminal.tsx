@@ -1,4 +1,4 @@
-// cogitatio-virtualis/virtualis-terminal/components/Terminal/CogitationTerminal.tsx
+// cogitatio-virtualis/virtualis-terminal/components/Terminal/VirtualisTerminal.tsx
 
 import React, { useEffect, useMemo, useCallback, useState } from 'react';
 import { Terminal as CRTTerminal, useEventQueue } from 'crt-terminal';
@@ -27,12 +27,12 @@ import TerminalFrame from './TerminalFrame';
 import { ASCII_ERROR_LINES } from './config/ascii.config';
 import { DeepPartial } from '@/components/Terminal/utils/deepMerge';
 
-export interface CogitationTerminalProps {
+export interface VirtualisTerminalProps {
   className?: string;
   initialConfig?: DeepPartial<TerminalConfig>;
 }
 
-export const CogitationTerminal: React.FC<CogitationTerminalProps> = ({
+export const VirtualisTerminal: React.FC<VirtualisTerminalProps> = ({
   className,
   initialConfig,
 }) => {
@@ -98,7 +98,7 @@ export const CogitationTerminal: React.FC<CogitationTerminalProps> = ({
 
   const handleModeTransition = useCallback(
     (newMode: OperationalMode, error?: Error) => {
-      console.info(`[CogitationTerminal] Mode Transition to ${newMode}`);
+      console.info(`[VirtualisTerminal] Mode Transition to ${newMode}`);
       setTerminalState((prev) => ({
         ...prev,
         mode: newMode,
@@ -152,7 +152,7 @@ export const CogitationTerminal: React.FC<CogitationTerminalProps> = ({
         await newController.mount(terminalHandle);
         setController(newController);
       } catch (error) {
-        console.error(`[CogitationTerminal] Mount error:`, error);
+        console.error(`[VirtualisTerminal] Mount error:`, error);
         await handleError(error as Error);
       }
     },
@@ -161,7 +161,7 @@ export const CogitationTerminal: React.FC<CogitationTerminalProps> = ({
 
   const handleError = useCallback(
     async (error: Error) => {
-      console.error('[CogitationTerminal] Error:', error);
+      console.error('[VirtualisTerminal] Error:', error);
 
       // Properly update state preserving other fields
       setTerminalState((prev) => ({
@@ -176,7 +176,7 @@ export const CogitationTerminal: React.FC<CogitationTerminalProps> = ({
           setController(null);
         } catch (unmountError) {
           console.error(
-            '[CogitationTerminal] Unmount error during error handling:',
+            '[VirtualisTerminal] Unmount error during error handling:',
             unmountError,
           );
         }
@@ -251,13 +251,13 @@ export const CogitationTerminal: React.FC<CogitationTerminalProps> = ({
   );
 
   const performRecovery = useCallback(async () => {
-    console.info(`[CogitationTerminal] Performing Recovery Operation`);
+    console.info(`[VirtualisTerminal] Performing Recovery Operation`);
     if (controller) {
       try {
         await controller.unmount();
         setController(null);
       } catch (error) {
-        console.error('[CogitationTerminal] Recovery unmount error:', error);
+        console.error('[VirtualisTerminal] Recovery unmount error:', error);
       }
     }
 
@@ -336,4 +336,4 @@ export const CogitationTerminal: React.FC<CogitationTerminalProps> = ({
   );
 };
 
-export default CogitationTerminal;
+export default VirtualisTerminal;

@@ -398,3 +398,49 @@ body {
     color: var(--terminal-red);
   }
 }
+
+.pdf-container {
+  background: var(--background);
+  color: var(--terminal-green);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+}
+
+.pdf-header {
+  width: 100%;
+  padding: 10px;
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  background: var(--terminal-green-dark);
+  text-align: center;
+  box-shadow: 0px 0px 5px var(--terminal-green-bright);
+}
+
+.terminal-button {
+  background: var(--background);
+  color: var(--terminal-green-bright);
+  border: 2px solid var(--terminal-green-mid);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  padding: 5px 15px;
+  cursor: pointer;
+  text-transform: uppercase;
+  box-shadow: 0px 0px 5px var(--terminal-green-mid);
+}
+
+.terminal-button:hover {
+  background: var(--terminal-green-dark);
+  box-shadow: 0px 0px 10px var(--terminal-green-bright);
+}
+
+.pdf-viewer {
+  width: 90%;
+  height: 90%;
+  border: none;
+  box-shadow: 0px 0px 10px var(--terminal-green-faint);
+}

@@ -29,20 +29,29 @@ export const TerminalFrame: React.FC<TerminalFrameProps> = ({
   const handleButtonClick = (buttonName: string) => {
     console.log(`Button clicked: ${buttonName}`);
 
-    if (buttonName === 'GitHub') {
-      window
-        .open(
-          'https://github.com/rabsef-bicrym/cogitatio-virtualis',
-          '_blank',
-          'noopener',
-        )
-        ?.focus();
-    } else if (buttonName === 'Contact') {
-      window.location.href =
-        'mailto:eric.helal@icloud.com?subject=' +
-        encodeURIComponent(
-          'Ref Cog.Vit: I heard about you from Cogitatio Virtualis',
-        );
+    switch (buttonName) {
+      case 'Resume': {
+        window.open('/resume', '_blank', 'popup,width=800,height=600');
+        break;
+      }
+      case 'GitHub': {
+        window
+          .open(
+            'https://github.com/rabsef-bicrym/cogitatio-virtualis',
+            '_blank',
+            'noopener',
+          )
+          ?.focus();
+        break;
+      }
+      case 'Contact': {
+        window.location.href =
+          'mailto:eric.helal@icloud.com?subject=' +
+          encodeURIComponent(
+            'Ref Cog.Vit: Hi Eric - Are you available for an interview?',
+          );
+        break;
+      }
     }
   };
 

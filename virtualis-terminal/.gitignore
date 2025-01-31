@@ -48,3 +48,7 @@ prisma/migrations/*
 !prisma/migrations/migration_lock.toml
 # Do not ignore the schema.prisma file
 !prisma/schema.prisma
+
+# resume data
+# Replace your resume here
+public/resume.pdf
