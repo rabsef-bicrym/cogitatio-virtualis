@@ -108,6 +108,8 @@ export const VirtualisTerminal: React.FC<VirtualisTerminalProps> = ({
     [],
   );
 
+  // This useCallback intentionally omits handleError to avoid a circular dependency
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const createAndMountController = useCallback(
     async (type: ControllerType): Promise<void> => {
       if (!type) return;
@@ -156,6 +158,7 @@ export const VirtualisTerminal: React.FC<VirtualisTerminalProps> = ({
         await handleError(error as Error);
       }
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [terminalHandle],
   );
 
@@ -247,6 +250,7 @@ export const VirtualisTerminal: React.FC<VirtualisTerminalProps> = ({
         isLocked: true,
       }));
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [controller, terminalHandle, handleModeTransition],
   );
 
@@ -277,6 +281,7 @@ export const VirtualisTerminal: React.FC<VirtualisTerminalProps> = ({
     await terminalHandle.lock(false);
     setConfig(baseConfig);
     await createAndMountController('boot');
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [controller, terminalHandle, baseConfig, createAndMountController]);
 
   const handleCommand = useCallback(
@@ -292,6 +297,8 @@ export const VirtualisTerminal: React.FC<VirtualisTerminalProps> = ({
     [controller, terminalState.mode, handleError],
   );
 
+  // This effect is intentionally designed to run only once at component initialization
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     eventQueue.handlers.clear();
     createAndMountController('boot').catch(handleError);
@@ -301,6 +308,7 @@ export const VirtualisTerminal: React.FC<VirtualisTerminalProps> = ({
         controller.unmount().catch(console.error);
       }
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const terminalProps = useMemo(

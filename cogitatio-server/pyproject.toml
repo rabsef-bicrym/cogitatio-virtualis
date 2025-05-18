@@ -11,6 +11,7 @@ dependencies = [
     "fastapi~=0.104.1",           # Updated to latest stable
     "pydantic~=2.5.1",            # Updated to match FastAPI requirements
     "uvicorn[standard]~=0.24.0",  # Updated
+    "gunicorn~=20.1.0",           # added gunicorn dependency
     "python-dotenv>=0.19.0",
     "voyageai>=0.1.0",
     "faiss-cpu>=1.7.4",

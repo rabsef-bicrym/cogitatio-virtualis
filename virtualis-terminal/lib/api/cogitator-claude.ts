@@ -207,8 +207,11 @@ export class ClaudeAPI {
 
   /**
    * Convert stored ThreadMessages to Claude's message format
+   * Ensures proper ordering of messages so that tool_use blocks are 
+   * always immediately followed by their corresponding tool_result blocks
    */
   private convertThreadMessages(messages: ThreadMessage[]): ClaudeMessage[] {
+    // First convert all messages to Claude's format
     return messages.map((m) => {
       // parse the JSON content from your DB field
       const contentBlocks = JSON.parse(m.content) as ClaudeContentBlock[];
@@ -222,13 +225,21 @@ export class ClaudeAPI {
   /**
    * Top-level chat interface
    *
-   * If Claude wants to use a tool, it will produce a "tool_use" block.
-   * We do NOT call any backend command here. We simply detect it and return it to the caller.
+   * If Claude wants to use a tool, it will produce one or more "tool_use" blocks.
+   * We do NOT call any backend command here. We simply detect and return the blocks to the caller.
+   * 
+   * IMPORTANT: When Claude includes tool_use blocks in its response,
+   * the caller MUST ensure that the very next message sent to Claude 
+   * contains corresponding tool_result blocks with matching tool_use_ids 
+   * in a single user message.
+   * 
+   * Failure to do this will result in a 400 error from the Claude API.
+   * The exact error received will be: "tool_use ids were found without 
+   * tool_result blocks immediately after."
    */
   async chat(threadMessages: ThreadMessage[]): Promise<{
     contentBlocks: any;
     reply: string | null;
-    toolUse?: ToolCallInfo;
   }> {
     if (!this.systemPrompt) {
       await this.initialize();
@@ -248,19 +259,9 @@ export class ClaudeAPI {
         tools: this.tools,
       });
 
-      // Extract any "tool_use" block
-      let toolUse: ToolCallInfo | undefined;
-      for (const block of response.content) {
-        if (block.type === 'tool_use') {
-          toolUse = {
-            name: block.name,
-            id: block.id,
-            input: block.input as Record<string, unknown>,
-          };
-          // We'll only handle the first tool_use encountered
-          break;
-        }
-      }
+      // We no longer extract just the first tool_use block
+      // Instead, we return all content blocks and let threads.ts
+      // handle collecting and processing ALL tool_use blocks
 
       // Extract any <reply> text from assistant blocks
       let finalReply: string | null = null;
@@ -275,8 +276,7 @@ export class ClaudeAPI {
 
       return {
         contentBlocks: response.content,
-        reply: finalReply,
-        toolUse,
+        reply: finalReply
       };
     } catch (error) {
       console.error('Claude API Error:', error);

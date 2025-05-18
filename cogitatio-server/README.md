@@ -27,33 +27,39 @@ Backend server component for Cogitatio Virtualis, providing vector search and do
 
 ## Quick Start
 
-### Prerequisites
-```bash
-Python >= 3.8
-pip >= 20.0
-```
+### Prerequisites with Conda
+1. Install `miniconda` (https://docs.anaconda.com/miniconda/install/#quick-command-line-install)
+2. Create a conda environment using the included `conda_env.yml` file
+  - We suggest you call it `cv_env`
+  - If you do not, you will need to change the `cogitatio.service` file to reflect your correct environment's name
+3. Navigate to the project's root directory (`cogitatio-server`)
 
 ### Installation
 ```bash
-# Install package in editable mode with development dependencies
-pip install -e ".[dev]"
+# Install package in editable mode with development dependencies 
+pip install -e .
 ```
 
 ### Running the Server
 
 Start both API server and document watcher:
 ```bash
-python -m cogitatio.scripts.start_server
+python -m cogitatio-server.scripts.start_server
 ```
 
 Start API server only:
 ```bash
-python -m cogitatio.scripts.start_server --api-only
+python -m cogitatio-server.scripts.start_server --api-only
 ```
 
 Start document processor watcher only:
 ```bash
-python -m cogitatio.scripts.start_server --processor-only --watch-only
+python -m cogitatio-server.scripts.start_server --processor-only --watch-only
+```
+
+Trigger a full reprocessing of all documents:
+```bash
+python -m cogitatio-server.scripts.start_server --reprocess-all
 ```
 
 ### Environment Configuration
@@ -67,6 +73,34 @@ DOCUMENTS_DIR=./documents
 COGITATIO_LOG_PATH=./logs
 HOST=127.0.0.1
 PORT=8000
+```
+
+### Automatic Startup
+Copy the `cogitatio.service` to the appropriate `systemd` directory
+```bash
+sudo cp ./cogitatio.service /etc/systemd/system/cogitatio.service
+```
+Then, perform the following commands to reload `systemd`, start the service on boot, and start it immediately, then check its status:
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable cogitatio.service
+sudo systemctl start cogitatio.service
+sudo systemctl status cogitatio.service
+```
+
+To stop the service:
+```bash
+sudo systemctl stop cogitatio.service
+```
+
+To disable the service:
+```bash
+sudo systemctl disable cogitatio.service
+```
+
+To examine the running service:
+```bash
+sudo journalctl -fu cogitatio.service
 ```
 
 ## Project Structure

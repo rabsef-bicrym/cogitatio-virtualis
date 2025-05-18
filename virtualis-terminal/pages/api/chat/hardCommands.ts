@@ -11,7 +11,7 @@
  */
 
 import { vectorApi } from '@/lib/api/vector';
-import { docUtils } from '@/pages/utils/docUtils';
+import { docUtils } from '@/lib/utils/docUtils';
 import {
   ExperienceDocument,
   ProjectDocument,

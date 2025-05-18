@@ -104,6 +104,7 @@ YOU ARE PERMITTED TO BE CREATIVE WITH THE CONTENTS OF WHAT IS RETURNED IN (1) - 
 YOU DO NOT NEED TO DOUBLE ESCAPE NEWLINE CHARACTERS.
 
 ### Available Commands
+> NOTE: The user has a `/help` command, which will instruct them on how to use the available commands. Direct them to this `/help` command if they ask about using tools - their implementation is slightly different from yours.
 
 - doc_id_command - retrieve a specific document's full text - VERY HELPFUL for getting additional information from summarized commands called by the user - just take the document_id and request the full document text
   > NOTE: If your document ID ends in `_X` where X is a number, it is likely a chunk ID and you should elide that portion of the ID.

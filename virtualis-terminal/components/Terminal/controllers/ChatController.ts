@@ -269,17 +269,25 @@ export class ChatController extends BaseController {
 
     console.log(event)
 
+    // Helper function to process message
+    const processMessage = (msg: string): string => {
+      // Replace literal \n sequences with actual newlines
+      return msg.replace(/\\n/g, '\n');
+    };
+
     switch (type) {
       case 'partial':
         if (message) {
-          await this.print(sendMessage(message, 'system'));
+          // Process message to convert \n to actual newlines
+          await this.print(sendMessage(processMessage(message), 'system'));
         }
         break;
 
       case 'complete':
         if (success) {
           if (message) {
-            await this.print(sendMessage(message, 'system'));
+            // Process message to convert \n to actual newlines
+            await this.print(sendMessage(processMessage(message), 'system'));
           }
           if (data) {
             console.log('[Command Data] The following data has been added to the context:', data);
@@ -290,7 +298,8 @@ export class ChatController extends BaseController {
           }
         } else {
           if (message) {
-            await this.print(sendMessage(message, 'system'));
+            // Process message to convert \n to actual newlines
+            await this.print(sendMessage(processMessage(message), 'system'));
           }
           if (data && data.recoverable_failure) {
             await this.print(
@@ -302,7 +311,8 @@ export class ChatController extends BaseController {
 
       case 'error':
         if (message) {
-          await this.print(sendMessage(`Error: ${message}`, 'system'));
+          // Process message to convert \n to actual newlines
+          await this.print(sendMessage(`Error: ${processMessage(message)}`, 'system'));
         }
         break;
 

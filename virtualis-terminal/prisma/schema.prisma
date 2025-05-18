@@ -1,42 +1,34 @@
-// prisma/schema.prisma
-
-// Generator for Prisma Client
 generator client {
   provider = "prisma-client-js"
 }
 
-// Data source configuration for SQLite
 datasource db {
   provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
-// Model representing a user session with enhanced tracking
 model Session {
-  id           String         @id @default(uuid()) // Unique identifier for the session
-  createdAt    DateTime       @default(now())      // Timestamp when the session was created
-  updatedAt    DateTime       @updatedAt           // Timestamp of last session update
-  expiresAt    DateTime                           // Timestamp when the session expires
-  data         Json?                              // Serialized session data
-  isActive     Boolean        @default(true)      // Flag to track active sessions
-  lastActivity DateTime       @default(now())     // Track last user activity
-  messages     ThreadMessage[]                    // Relation to ThreadMessage
-  
-  // Additional indexes for performance
+  id           String          @id @default(uuid())
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  expiresAt    DateTime
+  data         Json?
+  isActive     Boolean         @default(true)
+  lastActivity DateTime        @default(now())
+  messages     ThreadMessage[]
+
   @@index([expiresAt])
   @@index([isActive, lastActivity])
   @@index([createdAt])
 }
 
-// Model representing a single message in a thread
 model ThreadMessage {
-  id         String   @id @default(uuid()) // Unique identifier for the message
-  sessionId  String                        // Foreign key referencing Session
-  role       String                        // Role of the message sender ('user' or 'assistant')
-  content    String                        // Serialized JSON string representing content blocks
-  timestamp  DateTime @default(now())      // Timestamp when the message was created
+  id        String   @id @default(uuid())
+  sessionId String
+  role      String
+  content   String
+  timestamp DateTime @default(now())
+  session   Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 
-  session    Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade) // Relation to Session with cascade delete
-
-  @@index([sessionId, timestamp]) // Compound index for efficient retrieval
+  @@index([sessionId, timestamp])
 }

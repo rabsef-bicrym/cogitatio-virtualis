@@ -7,7 +7,9 @@ import { claudeApi } from '@/lib/api/cogitator-claude'
 import { handleHardCommand } from './hardCommands'
 import { ThreadMessage as dbThreadMessage } from '@prisma/client'
 
-// Expand your ContentBlock union to include a tool_use block:
+// Content block types for Claude API messages
+// IMPORTANT REQUIREMENT: Each ToolUseBlock MUST be immediately followed by a
+// corresponding ToolResultBlock in the next message to Claude
 type TextBlock = { type: 'text'; text: string }
 type ToolUseBlock = { type: 'tool_use'; name: string; id: string; input: Record<string, unknown> }
 type ToolResultBlock = { type: 'tool_result'; tool_use_id: string; content: string }
@@ -39,7 +41,15 @@ function parseDbMessage(dbMsg: dbThreadMessage): ThreadMessage {
   }
 }
 
-// Store a brand-new message of either user or assistant role
+/**
+ * Store a brand-new message of either user or assistant role
+ * 
+ * IMPORTANT FOR CLAUDE TOOL HANDLING:
+ * When storing a user message with a tool_result block, it MUST be stored 
+ * separately from other message content and must immediately follow the 
+ * message containing the tool_use block. This is critical for Claude's tool
+ * calling protocol.
+ */
 async function storeMessage(
   sessionId: string,
   role: 'user' | 'assistant',
@@ -55,6 +65,26 @@ async function storeMessage(
 }
 
 // Append text to the last user message if the last was user, otherwise create new
+/**
+ * Check if a message consists solely of tool_result blocks.
+ * This is important because we must never append regular text to a message
+ * that contains only tool_result blocks, as this would break the Claude API
+ * requirement that tool_result blocks must be in their own separate message.
+ */
+function isPureToolResult(msg: ThreadMessage): boolean {
+  return (
+    msg.role === 'user' &&
+    msg.content.length > 0 &&
+    msg.content.every(b => b.type === 'tool_result')
+  );
+}
+
+/**
+ * Append text to the last user message if the last was user, otherwise create new.
+ * IMPORTANT: Never appends to a message that consists solely of tool_result blocks,
+ * as this would break Claude's requirement that tool_result blocks must be in
+ * their own separate message.
+ */
 async function appendUserText(sessionId: string, text: string, additionalBlocks: ContentBlock[] = []) {
   const lastMsgArr = await prisma.threadMessage.findMany({
     where: { sessionId },
@@ -65,12 +95,16 @@ async function appendUserText(sessionId: string, text: string, additionalBlocks:
 
   const newBlocks: ContentBlock[] = [{ type: 'text', text }, ...additionalBlocks]
 
-  if (!lastMsg || lastMsg.role === 'assistant') {
+  // Always create a new message if:
+  // 1. There's no last message
+  // 2. Last message is from assistant
+  // 3. Last message is a pure tool_result message (critical for Claude's tool usage protocol)
+  if (!lastMsg || lastMsg.role === 'assistant' || (lastMsg && isPureToolResult(parseDbMessage(lastMsg)))) {
     await storeMessage(sessionId, 'user', newBlocks)
     return
   }
 
-  // If the last message was user, append to it
+  // If the last message was user and not a pure tool_result message, append to it
   const existing = parseDbMessage(lastMsg).content
   const updated = [...existing, ...newBlocks]
   await prisma.threadMessage.update({
@@ -129,6 +163,7 @@ function fixContentBlocks(blocks: ContentBlock[]): ContentBlock[] {
 
 /**
  * Extract <reply> text from an assistant message's blocks (may contain multiple).
+ * Properly preserves newlines in the original text to ensure they render correctly.
  */
 function parseAssistantReply(blocks: ContentBlock[]): string {
   const re = /<reply>([\s\S]*?)<\/reply>/g
@@ -140,7 +175,8 @@ function parseAssistantReply(blocks: ContentBlock[]): string {
         if (final) {
           final += '\n'
         }
-        final += match[1].trim()
+        // Keep the original text without trimming to preserve newlines
+        final += match[1]
       }
     }
   }
@@ -151,6 +187,9 @@ function parseAssistantReply(blocks: ContentBlock[]): string {
  * Gather all <reply> blocks in assistant messages after the last user message
  * that isn't just a tool_result. This allows multi-step replies to be returned
  * as a single string in the final response.
+ * 
+ * The adjusted logic uses the isPureToolResult helper to properly identify 
+ * user messages that should be skipped when collecting assistant replies.
  */
 async function parseAllAssistantRepliesSinceLastUserMessage(sessionId: string): Promise<string> {
   const thread = await getThreadMessages(sessionId)
@@ -159,7 +198,8 @@ async function parseAllAssistantRepliesSinceLastUserMessage(sessionId: string): 
   for (let i = thread.length - 1; i >= 0; i--) {
     const msg = thread[i]
     if (msg.role === 'user') {
-      if (!(msg.content.length === 1 && msg.content[0].type === 'tool_result')) {
+      // Skip any user messages that are pure tool_result messages
+      if (!isPureToolResult(msg)) {
         startIndex = i
         break
       }
@@ -179,7 +219,8 @@ async function parseAllAssistantRepliesSinceLastUserMessage(sessionId: string): 
             if (combinedReplies) {
               combinedReplies += '\n\n'
             }
-            combinedReplies += match[1].trim()
+            // Preserve original formatting and newlines by not trimming the content
+            combinedReplies += match[1]
           }
         }
       }
@@ -192,6 +233,12 @@ async function parseAllAssistantRepliesSinceLastUserMessage(sessionId: string): 
 /**
  * Modified Claude handler with streaming support
  */
+/**
+ * Handles Claude API responses, managing tool calls and message streaming
+ * This function is responsible for properly organizing the message flow
+ * to ensure all tool_use blocks are followed immediately by tool_result blocks
+ * as required by Claude's API
+ */
 export async function handleClaudeResponse(
   sessionId: string,
   onProgress: (message: string, eventType: 'partial' | 'complete') => Promise<void>
@@ -203,13 +250,21 @@ export async function handleClaudeResponse(
     turnCount++
 
     // Fetch entire conversation each iteration
+    // Fetch the entire conversation history for context
     const entireThread = await getThreadMessages(sessionId)
-    const { contentBlocks, reply, toolUse } = await claudeApi.chat(
+    
+    // Send the thread to Claude API
+    // If Claude responds with a tool_use block, we must immediately follow up
+    // with a corresponding tool_result block in the next message
+    const { contentBlocks, reply } = await claudeApi.chat(
       entireThread.map((m) => ({
         ...m,
         content: JSON.stringify(m.content),
       })) as any
     )
+    
+    const toolUses = contentBlocks
+      .filter((b: ContentBlock): b is ToolUseBlock => b.type === 'tool_use');
 
     // Ensure unbalanced <reply> tags are fixed in each text block
     const correctedBlocks = fixContentBlocks(contentBlocks)
@@ -228,81 +283,96 @@ export async function handleClaudeResponse(
     // Extract and stream immediate reply
     const assistantReply = parseAssistantReply(correctedBlocks)
     if (assistantReply) {
-      if (toolUse) {
+      // Ensure we're not stripping newlines when sending to client
+      if (toolUses.length) {
+        // This is a partial response as more tool calls are pending
         await onProgress(assistantReply, 'partial')
       } else {
+        // This is a complete response - no more tool calls
         await onProgress(assistantReply, 'complete')
         break
       }
     }
 
-    if (toolUse) {
-      // Determine the slash command
-      let commandStr = ''
-      switch (toolUse.name) {
-        case 'doc_id_command': {
-          const did = toolUse.input.doc_id as string
-          commandStr = `/doc_id ${did}`
-          break
-        }
-        case 'docs_command': {
-          const dt = toolUse.input.doc_type as string
-          commandStr = `/docs ${dt}`
-          break
-        }
-        case 'project_command': {
-          const sub = toolUse.input.subcommand as string
-          if (sub === 'type' && toolUse.input.subtype) {
-            const subtype = toolUse.input.subtype as string
-            commandStr = `/project type ${subtype}`
-          } else {
-            commandStr = `/project ${sub}`
-          }
-          break
-        }
-        case 'experience_command': {
-          const sub = toolUse.input.subcommand as string
-          if (sub) {
-            commandStr = `/exp ${sub}`
-          } else {
-            commandStr = `/exp`
-          }
-          break
-        }
-        case 'other_command': {
-          const st = toolUse.input.subtype as string
-          commandStr = `/other ${st}`
-          break
-        }
-        case 'search_vector_database': {
-          const et = toolUse.input.embedding_type as string
-          const q = toolUse.input.query as string
-          commandStr = `/search ${et} ${q}`
-          break
-        }
-        case 'status_command': {
-          commandStr = `/status`
-          break
-        }
-        default: {
-          console.warn(`Unknown tool name encountered: ${toolUse.name} - skipping...`)
-          break
-        }
+    if (toolUses.length) {
+      // Log when multiple tool uses are detected to help with debugging
+      if (toolUses.length > 1) {
+        console.log(`[handleClaudeResponse] Processing ${toolUses.length} tool calls in a single turn`);
       }
 
-      // Run slash command and notify client
-      const toolOutcome = await handleHardCommand(commandStr, true)
+      const resultBlocks: ToolResultBlock[] = [];
 
-      // Store the result in the conversation
-      const toolResultBlock: ToolResultBlock = {
-        type: 'tool_result',
-        tool_use_id: toolUse.id,
-        content: JSON.stringify(toolOutcome),
+      for (const tu of toolUses) {
+        let commandStr = '';
+        switch (tu.name) {
+          case 'doc_id_command': {
+            const did = tu.input.doc_id as string
+            commandStr = `/doc_id ${did}`
+            break
+          }
+          case 'docs_command': {
+            const dt = tu.input.doc_type as string
+            commandStr = `/docs ${dt}`
+            break
+          }
+          case 'project_command': {
+            const sub = tu.input.subcommand as string
+            if (sub === 'type' && tu.input.subtype) {
+              const subtype = tu.input.subtype as string
+              commandStr = `/project type ${subtype}`
+            } else {
+              commandStr = `/project ${sub}`
+            }
+            break
+          }
+          case 'experience_command': {
+            const sub = tu.input.subcommand as string
+            if (sub) {
+              commandStr = `/exp ${sub}`
+            } else {
+              commandStr = `/exp`
+            }
+            break
+          }
+          case 'other_command': {
+            const st = tu.input.subtype as string
+            commandStr = `/other ${st}`
+            break
+          }
+          case 'search_vector_database': {
+            const et = tu.input.embedding_type as string
+            const q = tu.input.query as string
+            commandStr = `/search ${et} ${q}`
+            break
+          }
+          case 'status_command': {
+            commandStr = `/status`
+            break
+          }
+          default: {
+            console.warn(`Unknown tool name encountered: ${tu.name} - skipping...`)
+            break
+          }
+        }
+
+        // Run slash command and get result
+        const toolOutcome = await handleHardCommand(commandStr, true);
+        
+        // Add the result to our collection
+        resultBlocks.push({
+          type: 'tool_result',
+          tool_use_id: tu.id,
+          content: JSON.stringify(toolOutcome),
+        });
       }
-      await storeMessage(sessionId, 'user', [toolResultBlock])
+
+      // Create ONE user message containing ALL the tool results, as required by Claude API
+      // This ensures that all tool_result blocks are sent together in a single message,
+      // preventing the 400 error when Claude sees tool_use IDs without matching tool_result blocks
+      await storeMessage(sessionId, 'user', resultBlocks);
     } else {
-      // await onProgress(assistantReply, 'complete')
-      break
+      // No tool uses - we can break out of the loop
+      break;
     }
   }
 
@@ -363,6 +433,7 @@ export default withSessionMiddleware(async function threadsHandler(
     res.flushHeaders(); // Send headers immediately
 
     const sendEvent = (data: object) => {
+      // The original event data serialization - no changes
       res.write(`data: ${JSON.stringify(data)}\n\n`);
     };
 
