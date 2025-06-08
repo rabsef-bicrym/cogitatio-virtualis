@@ -38,7 +38,7 @@ interface ToolUseInput {
 const defaultConfig: Required<HaikuGeneratorConfig> = {
   maxTokens: 256,
   temperature: 0.9,
-  model: 'claude-3-5-haiku-20241022',
+  model: 'claude-3-5-haiku-latest',
 };
 
 /**

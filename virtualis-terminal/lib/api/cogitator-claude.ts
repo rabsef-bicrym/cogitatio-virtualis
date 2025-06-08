@@ -251,7 +251,7 @@ export class ClaudeAPI {
     try {
       // Call Anthropic's endpoint
       const response = await this.client.messages.create({
-        model: 'claude-3-5-sonnet-latest',
+        model: 'claude-sonnet-4-20250514',
         max_tokens: 2048,
         temperature: 1,
         system: this.systemPrompt!,
