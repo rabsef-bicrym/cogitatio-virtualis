@@ -7,9 +7,22 @@ import { claudeApi } from '@/lib/api/cogitator-claude'
 import { handleHardCommand } from './hardCommands'
 import { ThreadMessage as dbThreadMessage } from '@prisma/client'
 
+/**
+ * Known limitations with Claude's tool use protocol:
+ * 1. ALL tool_use blocks in an assistant message must have corresponding tool_result blocks
+ *    in the immediately following user message
+ * 2. The tool_result blocks must be in their own separate message, not mixed with other content
+ * 3. If ANY tool_use block is missing its corresponding tool_result, Claude will return a 400 error
+ * 4. Even if tool execution fails, a tool_result block must still be provided
+ */
+
 // Content block types for Claude API messages
-// IMPORTANT REQUIREMENT: Each ToolUseBlock MUST be immediately followed by a
-// corresponding ToolResultBlock in the next message to Claude
+// IMPORTANT REQUIREMENTS FOR TOOL USE:
+// 1. Each ToolUseBlock MUST be immediately followed by a corresponding ToolResultBlock
+//    in the VERY NEXT message to Claude
+// 2. When multiple tool_use blocks are in a single assistant message, ALL corresponding
+//    tool_result blocks must be in the next user message
+// 3. Never mix tool_result blocks with text blocks in the same message
 type TextBlock = { type: 'text'; text: string }
 type ToolUseBlock = { type: 'tool_use'; name: string; id: string; input: Record<string, unknown> }
 type ToolResultBlock = { type: 'tool_result'; tool_use_id: string; content: string }
@@ -302,74 +315,101 @@ export async function handleClaudeResponse(
 
       const resultBlocks: ToolResultBlock[] = [];
 
+      // Process all tool uses and collect their results
       for (const tu of toolUses) {
-        let commandStr = '';
-        switch (tu.name) {
-          case 'doc_id_command': {
-            const did = tu.input.doc_id as string
-            commandStr = `/doc_id ${did}`
-            break
-          }
-          case 'docs_command': {
-            const dt = tu.input.doc_type as string
-            commandStr = `/docs ${dt}`
-            break
-          }
-          case 'project_command': {
-            const sub = tu.input.subcommand as string
-            if (sub === 'type' && tu.input.subtype) {
-              const subtype = tu.input.subtype as string
-              commandStr = `/project type ${subtype}`
-            } else {
-              commandStr = `/project ${sub}`
+        try {
+          let commandStr = '';
+          switch (tu.name) {
+            case 'doc_id_command': {
+              const did = tu.input.doc_id as string
+              commandStr = `/doc_id ${did}`
+              break
             }
-            break
-          }
-          case 'experience_command': {
-            const sub = tu.input.subcommand as string
-            if (sub) {
-              commandStr = `/exp ${sub}`
-            } else {
-              commandStr = `/exp`
+            case 'docs_command': {
+              const dt = tu.input.doc_type as string
+              commandStr = `/docs ${dt}`
+              break
             }
-            break
+            case 'project_command': {
+              const sub = tu.input.subcommand as string
+              if (sub === 'type' && tu.input.subtype) {
+                const subtype = tu.input.subtype as string
+                commandStr = `/project type ${subtype}`
+              } else {
+                commandStr = `/project ${sub}`
+              }
+              break
+            }
+            case 'experience_command': {
+              const sub = tu.input.subcommand as string
+              if (sub) {
+                commandStr = `/exp ${sub}`
+              } else {
+                commandStr = `/exp`
+              }
+              break
+            }
+            case 'other_command': {
+              const st = tu.input.subtype as string
+              commandStr = `/other ${st}`
+              break
+            }
+            case 'search_vector_database': {
+              const et = tu.input.embedding_type as string
+              const q = tu.input.query as string
+              commandStr = `/search ${et} ${q}`
+              break
+            }
+            case 'status_command': {
+              commandStr = `/status`
+              break
+            }
+            default: {
+              console.warn(`Unknown tool name encountered: ${tu.name} - skipping...`)
+              // Even for unknown tools, we must provide a tool_result
+              resultBlocks.push({
+                type: 'tool_result',
+                tool_use_id: tu.id,
+                content: JSON.stringify({
+                  success: false,
+                  message: `Unknown tool: ${tu.name}`,
+                  data: { recoverable_failure: true }
+                }),
+              });
+              continue; // Skip to next tool
+            }
           }
-          case 'other_command': {
-            const st = tu.input.subtype as string
-            commandStr = `/other ${st}`
-            break
-          }
-          case 'search_vector_database': {
-            const et = tu.input.embedding_type as string
-            const q = tu.input.query as string
-            commandStr = `/search ${et} ${q}`
-            break
-          }
-          case 'status_command': {
-            commandStr = `/status`
-            break
-          }
-          default: {
-            console.warn(`Unknown tool name encountered: ${tu.name} - skipping...`)
-            break
-          }
-        }
 
-        // Run slash command and get result
-        const toolOutcome = await handleHardCommand(commandStr, true);
-        
-        // Add the result to our collection
-        resultBlocks.push({
-          type: 'tool_result',
-          tool_use_id: tu.id,
-          content: JSON.stringify(toolOutcome),
-        });
+          // Run slash command and get result
+          const toolOutcome = await handleHardCommand(commandStr, true);
+          
+          // Add the result to our collection
+          resultBlocks.push({
+            type: 'tool_result',
+            tool_use_id: tu.id,
+            content: JSON.stringify(toolOutcome),
+          });
+        } catch (error) {
+          // If tool execution fails, still provide a tool_result to maintain sequence
+          console.error(`[handleClaudeResponse] Error processing tool ${tu.name}:`, error);
+          resultBlocks.push({
+            type: 'tool_result',
+            tool_use_id: tu.id,
+            content: JSON.stringify({
+              success: false,
+              message: `Tool execution failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+              data: { recoverable_failure: true }
+            }),
+          });
+        }
       }
 
-      // Create ONE user message containing ALL the tool results, as required by Claude API
+      // CRITICAL: Create ONE user message containing ALL the tool results, as required by Claude API
       // This ensures that all tool_result blocks are sent together in a single message,
       // preventing the 400 error when Claude sees tool_use IDs without matching tool_result blocks
-      await storeMessage(sessionId, 'user', resultBlocks);
+      if (resultBlocks.length > 0) {
+        await storeMessage(sessionId, 'user', resultBlocks);
+      }
     } else {
       // No tool uses - we can break out of the loop
       break;
