@@ -3,53 +3,53 @@
 import {
   WordConfig,
   LineOptions,
-} from '@/components/Terminal/utils/printUtils'; // Adjust the import path as necessary
+} from "@/components/Terminal/utils/printUtils"; // Adjust the import path as necessary
 
 const COGITATIO_LOGO = [
-  '▄████▄   ▒█████    ▄████  ██▓▄▄▄█████▓ ▄▄▄     ▄▄▄█████▓ ██▓ ▒█████  ',
-  '▒██▀ ▀█  ▒██▒  ██▒ ██▒ ▀█▒▓██▒▓  ██▒ ▓▒▒████▄   ▓  ██▒ ▓▒▓██▒▒██▒  ██▒',
-  '▒▓█    ▄ ▒██░  ██▒▒██░▄▄▄░▒██▒▒ ▓██░ ▒░▒██  ▀█▄ ▒ ▓██░ ▒░▒██▒▒██░  ██▒',
-  '▒▓▓▄ ▄██▒▒██   ██░░▓█  ██▓░██░░ ▓██▓ ░ ░██▄▄▄▄██░ ▓██▓ ░ ░██░▒██   ██░',
-  '▒ ▓███▀ ░░ ████▓▒░░▒▓███▀▒░██░  ▒██▒ ░  ▓█   ▓██▒ ▒██▒ ░ ░██░░ ████▓▒░',
-  '░ ░▒ ▒  ░░ ▒░▒░▒░  ░▒   ▒ ░▓    ▒ ░░    ▒▒   ▓▒█░ ▒ ░░   ░▓  ░ ▒░▒░▒░ ',
-  '  ░  ▒     ░ ▒ ▒░   ░   ░  ▒ ░    ░      ▒   ▒▒ ░   ░     ▒ ░  ░ ▒ ▒░ ',
-  '░        ░ ░ ░ ▒  ░ ░   ░  ▒ ░  ░        ░   ▒    ░       ▒ ░░ ░ ░ ▒  ',
-  '░ ░          ░ ░        ░  ░                 ░  ░         ░      ░ ░  ',
-  '                                                                      ',
+  "▄████▄   ▒█████    ▄████  ██▓▄▄▄█████▓ ▄▄▄     ▄▄▄█████▓ ██▓ ▒█████  ",
+  "▒██▀ ▀█  ▒██▒  ██▒ ██▒ ▀█▒▓██▒▓  ██▒ ▓▒▒████▄   ▓  ██▒ ▓▒▓██▒▒██▒  ██▒",
+  "▒▓█    ▄ ▒██░  ██▒▒██░▄▄▄░▒██▒▒ ▓██░ ▒░▒██  ▀█▄ ▒ ▓██░ ▒░▒██▒▒██░  ██▒",
+  "▒▓▓▄ ▄██▒▒██   ██░░▓█  ██▓░██░░ ▓██▓ ░ ░██▄▄▄▄██░ ▓██▓ ░ ░██░▒██   ██░",
+  "▒ ▓███▀ ░░ ████▓▒░░▒▓███▀▒░██░  ▒██▒ ░  ▓█   ▓██▒ ▒██▒ ░ ░██░░ ████▓▒░",
+  "░ ░▒ ▒  ░░ ▒░▒░▒░  ░▒   ▒ ░▓    ▒ ░░    ▒▒   ▓▒█░ ▒ ░░   ░▓  ░ ▒░▒░▒░ ",
+  "  ░  ▒     ░ ▒ ▒░   ░   ░  ▒ ░    ░      ▒   ▒▒ ░   ░     ▒ ░  ░ ▒ ▒░ ",
+  "░        ░ ░ ░ ▒  ░ ░   ░  ▒ ░  ░        ░   ▒    ░       ▒ ░░ ░ ░ ▒  ",
+  "░ ░          ░ ░        ░  ░                 ░  ░         ░      ░ ░  ",
+  "                                                                      ",
 ];
 
 export const COGITATIO_LOGO_LINES = COGITATIO_LOGO.map((line) => ({
   words: [
     {
-      type: 'text',
+      type: "text",
       characters: line,
-      className: 'ascii-char',
+      className: "ascii-char",
     } as WordConfig,
   ],
-  options: { lineClassName: 'ascii-line' } as LineOptions,
+  options: { lineClassName: "ascii-line" } as LineOptions,
 }));
 
 export const ASCII_ERROR = [
-  '  _________  ',
+  "  _________  ",
   " |'---+---'| ",
-  ' || ◕  ◕ || ',
-  ' || .---. || ',
-  ' `--[ - ]--` ',
-  ' __|==|==|__ ',
-  '|:::::::::::|',
-  '`-=-=-=-=-=-`',
+  " || ◕  ◕ || ",
+  " || .---. || ",
+  " `--[ - ]--` ",
+  " __|==|==|__ ",
+  "|:::::::::::|",
+  "`-=-=-=-=-=-`",
 ];
 
 // Transform into format for utils
 export const ASCII_ERROR_LINES = ASCII_ERROR.map((line) => ({
   words: [
     {
-      type: 'text' as const,
+      type: "text" as const,
       characters: line,
-      className: 'error-message',
+      className: "error-message",
     } as WordConfig,
   ],
-  options: { lineClassName: 'error-line' } as LineOptions,
+  options: { lineClassName: "error-line" } as LineOptions,
 }));
 
 export interface ASCIILine {

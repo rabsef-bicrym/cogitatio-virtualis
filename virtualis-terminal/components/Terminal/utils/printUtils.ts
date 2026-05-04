@@ -4,13 +4,14 @@ import {
   buttonWord,
   commandWord,
   anchorWord,
-  PrintableItem,
   Words,
   Lines,
-} from 'crt-terminal';
+  TerminalProps,
+} from "crt-terminal";
 
 export { textWord, buttonWord, commandWord, anchorWord };
-export type { PrintableItem, Words, Lines };
+export type PrintableItem = NonNullable<TerminalProps["banner"]>;
+export type { Words, Lines };
 
 type ButtonCallback = (
   e: React.MouseEvent<HTMLButtonElement, MouseEvent>,
@@ -28,10 +29,10 @@ interface BaseWordConfig {
 
 export type WordConfig = BaseWordConfig &
   (
-    | { type: 'text' }
-    | { type: 'button'; onClick: ButtonCallback }
-    | { type: 'anchor'; href: string; onClick?: AnchorCallback }
-    | { type: 'command'; prompt: string }
+    | { type: "text" }
+    | { type: "button"; onClick: ButtonCallback }
+    | { type: "anchor"; href: string; onClick?: AnchorCallback }
+    | { type: "command"; prompt: string }
   );
 
 export interface LineOptions {
@@ -45,26 +46,26 @@ const createWord = (config: WordConfig): Words => {
   const baseProps = { characters, className, id, dataAttribute };
 
   switch (config.type) {
-    case 'command':
+    case "command":
       return commandWord({
         ...baseProps,
-        prompt: config.prompt || '',
+        prompt: config.prompt || "",
       });
 
-    case 'button':
+    case "button":
       return buttonWord({
         ...baseProps,
         onClick: config.onClick || (() => {}),
       });
 
-    case 'anchor':
+    case "anchor":
       return anchorWord({
         ...baseProps,
-        href: config.href || '#',
+        href: config.href || "#",
         onClick: config.onClick,
       });
 
-    case 'text':
+    case "text":
     default:
       return textWord(baseProps);
   }
@@ -94,24 +95,24 @@ export const sendMultiLine = (
 
 export const sendMessage = (
   text: string,
-  role: 'system' | 'info' | 'user' | 'assistant' = 'user', // default role is 'user'
+  role: "system" | "info" | "user" | "assistant" = "user", // default role is 'user'
 ): PrintableItem => {
   const wordClassName = `message-${role}`;
   const lineClassName = `line-${role}`;
 
   return sendLine(
-    [{ type: 'text', characters: text, className: wordClassName }],
+    [{ type: "text", characters: text, className: wordClassName }],
     { lineClassName },
   );
 };
 
 export const sendEmptyLine = (): PrintableItem => {
-  return sendLine([{ type: 'text', characters: '\u00A0' }]);
+  return sendLine([{ type: "text", characters: "\u00A0" }]);
 };
 
 export const sendBorderedEmptyLine = (): PrintableItem => {
   return sendLine(
-    [{ type: 'text', characters: '\u00A0', className: 'error-message' }],
-    { lineClassName: 'error-line' },
+    [{ type: "text", characters: "\u00A0", className: "error-message" }],
+    { lineClassName: "error-line" },
   );
 };

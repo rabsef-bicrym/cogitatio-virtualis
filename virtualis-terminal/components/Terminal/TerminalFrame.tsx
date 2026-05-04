@@ -1,7 +1,7 @@
 // cogitatio-virtualis/virtualis-terminal/components/Terminal/TerminalFrame.tsx
 
-import React, { useEffect, useRef, useState } from 'react';
-import type { TerminalConfig } from './types/terminal';
+import React, { useEffect, useRef, useState } from "react";
+import type { TerminalConfig } from "./types/terminal";
 
 interface TerminalFrameProps {
   children: React.ReactNode;
@@ -27,28 +27,26 @@ export const TerminalFrame: React.FC<TerminalFrameProps> = ({
   const [isLandscape, setIsLandscape] = useState(false);
 
   const handleButtonClick = (buttonName: string) => {
-    console.log(`Button clicked: ${buttonName}`);
-
     switch (buttonName) {
-      case 'Resume': {
-        window.open('/resume', '_blank', 'popup,width=800,height=600');
+      case "Resume": {
+        window.open("/resume", "_blank", "popup,width=800,height=600");
         break;
       }
-      case 'GitHub': {
+      case "GitHub": {
         window
           .open(
-            'https://github.com/rabsef-bicrym/cogitatio-virtualis',
-            '_blank',
-            'noopener',
+            "https://github.com/rabsef-bicrym/cogitatio-virtualis",
+            "_blank",
+            "noopener",
           )
           ?.focus();
         break;
       }
-      case 'Contact': {
+      case "Contact": {
         window.location.href =
-          'mailto:eric.helal@icloud.com?subject=' +
+          "mailto:eric.helal@icloud.com?subject=" +
           encodeURIComponent(
-            'Ref Cog.Vit: Hi Eric - Are you available for an interview?',
+            "Ref Cog.Vit: Hi Eric - Are you available for an interview?",
           );
         break;
       }
@@ -96,44 +94,44 @@ export const TerminalFrame: React.FC<TerminalFrameProps> = ({
     };
 
     calculateDimensions();
-    window.addEventListener('resize', calculateDimensions);
-    window.addEventListener('orientationchange', calculateDimensions);
+    window.addEventListener("resize", calculateDimensions);
+    window.addEventListener("orientationchange", calculateDimensions);
 
     return () => {
-      window.removeEventListener('resize', calculateDimensions);
-      window.removeEventListener('orientationchange', calculateDimensions);
+      window.removeEventListener("resize", calculateDimensions);
+      window.removeEventListener("orientationchange", calculateDimensions);
     };
   }, [config.dimensions]);
 
   return (
-    <div className='terminal-frame-container' ref={containerRef}>
+    <div className="terminal-frame-container" ref={containerRef}>
       <div
-        className={`terminal-frame ${className || ''} ${
-          isLandscape ? 'landscape' : 'portrait'
+        className={`terminal-frame ${className || ""} ${
+          isLandscape ? "landscape" : "portrait"
         }`}
         style={{
-          width: dimensions.width ? `${dimensions.width}px` : '100%',
-          height: dimensions.height ? `${dimensions.height}px` : '100%',
+          width: dimensions.width ? `${dimensions.width}px` : "100%",
+          height: dimensions.height ? `${dimensions.height}px` : "100%",
         }}
       >
-        <div className='content-area'>{children}</div>
+        <div className="content-area">{children}</div>
 
-        <div className='bezel-buttons'>
+        <div className="bezel-buttons">
           <button
-            className='bezel-button'
-            onClick={() => handleButtonClick('Resume')}
+            className="bezel-button"
+            onClick={() => handleButtonClick("Resume")}
           >
             Resume
           </button>
           <button
-            className='bezel-button'
-            onClick={() => handleButtonClick('GitHub')}
+            className="bezel-button"
+            onClick={() => handleButtonClick("GitHub")}
           >
             GitHub
           </button>
           <button
-            className='bezel-button'
-            onClick={() => handleButtonClick('Contact')}
+            className="bezel-button"
+            onClick={() => handleButtonClick("Contact")}
           >
             Contact
           </button>
@@ -243,7 +241,7 @@ export const TerminalFrame: React.FC<TerminalFrameProps> = ({
             z-index: 1;
           }
         `
-            : ''
+            : ""
         }
 
         ${
@@ -263,7 +261,7 @@ export const TerminalFrame: React.FC<TerminalFrameProps> = ({
             animation: noise 0.2s infinite;
           }
         `
-            : ''
+            : ""
         }
 
         /* Ensure content is above effects but buttons can still be clicked */

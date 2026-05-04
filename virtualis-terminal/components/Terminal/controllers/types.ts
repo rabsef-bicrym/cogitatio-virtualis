@@ -1,10 +1,9 @@
 // cogitatio-virtualis/virtualis-terminal/components/Terminal/types/terminal.ts
 
-import type { PrintableItem } from 'crt-terminal';
-import type { TerminalHandle } from '../types/terminal';
-import type { ChatMessage } from '@/types/chat';
+import type { TerminalHandle } from "../types/terminal";
+import type { ChatMessage } from "@/types/chat";
 
-export type ControllerStatus = 'initializing' | 'active' | 'error' | 'complete';
+export type ControllerStatus = "initializing" | "active" | "error" | "complete";
 
 export interface ControllerState {
   status: ControllerStatus;
@@ -32,8 +31,8 @@ export interface ChatState extends ControllerState {
 }
 
 export type ControllerEvent =
-  | { type: 'status'; status: ControllerStatus }
-  | { type: 'error'; error: Error }
-  | { type: 'complete' };
+  | { type: "status"; status: ControllerStatus }
+  | { type: "error"; error: Error }
+  | { type: "complete" };
 
 export type ControllerEventHandler = (event: ControllerEvent) => void;

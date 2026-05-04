@@ -43,16 +43,16 @@ export interface TerminalConfig {
 }
 
 export type WordStyle =
-  | 'normal'
-  | 'command'
-  | 'error'
-  | 'success'
-  | 'warning'
-  | 'system';
+  | "normal"
+  | "command"
+  | "error"
+  | "success"
+  | "warning"
+  | "system";
 
 export interface TerminalWord {
   text: string;
-  type: 'text' | 'command' | 'anchor' | 'button';
+  type: "text" | "command" | "anchor" | "button";
   style?: WordStyle;
   metadata?: {
     href?: string;
@@ -65,7 +65,7 @@ export interface TerminalWord {
 
 export interface TerminalLine {
   words: TerminalWord[];
-  type: 'text' | 'command';
+  type: "text" | "command";
   className?: string;
   id?: string;
 }

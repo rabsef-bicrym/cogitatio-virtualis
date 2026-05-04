@@ -1,218 +1,173 @@
 # COGITATIO VIRTUALIS - Virtualis Terminal
 
-A neural terminal interface merging traditional command-line aesthetics with modern AI capabilities. The Virtualis Terminal provides a retro-futuristic interface for AI-powered document exploration and interaction.
+Virtualis Terminal is the Next.js frontend for COGITATIO VIRTUALIS: a CRT-style
+AI terminal for document exploration, resume navigation, and portfolio chat.
 
-## Project Status
-- **(✓_✓) Boot Sequence**
-  - POST message generation
-  - ASCII art rendering
-  - Haiku generation
+## Status
 
-- **(✓_✓) Error Handling**
-  - Error boundary implementation
-  - Visual error states
-  - Recovery system
-  - Error logging
-  - Fallback content
-
-- **(✓_✓) Main Loop**
-  - Chat controller
-  - Command processing
-  - Document retrieval
-  - Vector search integration
-  - Response generation
-
-- **(✗_✗) Testing**
-  - Manual Testing Complete
-  - TODO: Automated testing suite
+- Boot sequence generation is active, with Claude-backed generation and local
+  fallback messages.
+- Chat is routed through session-scoped threads, server-sent events, typed
+  Claude tool dispatch, and vector search against the Python backend.
+- Error handling uses visual terminal states plus recoverable slash-command
+  fallback behavior.
+- Automated checks are active: ESLint, Prettier, TypeScript, Vitest, Playwright,
+  and production build.
 
 ## Architecture
 
-### Core Components
+### Terminal Surface
 
-#### Terminal System
-- `VirtualisTerminal`: Main component orchestrating the terminal experience
-- `TerminalFrame`: Responsive container with CRT effects, links to additional resources
-- Controller-based architecture for state management
-- Event queue system for operation sequencing
+- `components/Terminal/VirtualisTerminal.tsx` orchestrates the terminal
+  experience.
+- `components/Terminal/TerminalFrame.tsx` owns the responsive CRT frame and
+  surrounding links.
+- Terminal controllers isolate boot, chat, event queue, and state transitions.
+- CSS Modules and global styles provide the CRT scanline, glow, and layout
+  effects.
 
-#### Controllers
-1. **Boot Controller**
-   - Handles startup sequence
-   - ASCII art rendering
-   - System initialization
-   - State transitions
+### Chat API
 
-2. **Chat Controller**
-   - Command processing
-   - History management
-   - Document retrieval
-   - Search functionality
-   - Special commands
+The public chat route is intentionally thin:
 
-#### State Management
-```typescript
-interface TerminalState {
-  mode: 'NORMAL' | 'ERROR' | 'RECOVERY';
-  designatedController: 'boot' | 'chat' | null;
-  isLocked: boolean;
-  isLoading: boolean;
-  isFocused: boolean;
-  error: Error | null;
-}
+- `pages/api/chat/threads.ts` applies session middleware and delegates to
+  `lib/chat/chatRoute.ts`.
+- `lib/chat/threadStore.ts` owns Prisma persistence.
+- `lib/chat/sseWriter.ts` owns server-sent event framing.
+- `lib/chat/messageCodec.ts` owns Claude message encoding and reply repair.
+- `lib/chat/claudeToolLoop.ts` owns Claude tool-loop orchestration.
+- `lib/chat/claudeToolDispatch.ts` dispatches Claude tool calls through typed
+  Zod input objects.
+- `lib/chat/hardCommands.ts` handles human slash commands.
+
+### Backend Contract
+
+- `lib/api/vector.ts` is the frontend client for the Python vector API.
+- `lib/api/document-codec.ts` parses the cross-language document contract before
+  frontend code consumes vector responses.
+- Python document metadata uses the canonical `sub_type` field for "other"
+  documents.
+
+## Technical Stack
+
+- Next.js 16
+- React 19
+- TypeScript 6
+- Prisma 7 with SQLite and `@prisma/adapter-better-sqlite3`
+- Anthropic TypeScript SDK
+- `crt-terminal`
+- Zod
+- ESLint 9 flat config
+- Prettier 3
+- Vitest
+- Playwright
+
+## API Endpoints
+
+```text
+GET  /api/boot/sequence   Generate boot and haiku text
+GET  /api/chat/threads    Read the current session thread
+POST /api/chat/threads    Stream chat or slash-command responses
 ```
 
-### Key Features
+## Commands
 
-#### Visual Effects
-- Authentic CRT screen simulation
-- Scanline effects
-- Screen noise
-- Text glow
-- Flicker effects
-
-#### Terminal Features
-- ASCII art support
-- Slash commands
-- Command history
-- Loading indicators
-- Error visualization
-
-#### AI Integration
-- Claude API integration
-- Vector search capabilities
-- Context-aware interactions
-
-### Technical Stack
-- Next.js 12
-- TypeScript
-- React 17
-- CSS Modules
-- Claude Typescript SDK
-- FAISS
-
-### API Endpoints
-
-```
-POST /api/chat/message     - Process chat messages
-GET  /api/boot/sequence    - Generate boot sequence
-GET  /api/chat/documents   - Retrieve documents
-GET  /api/chat/experience  - Get experience data
-```
-
-### Commands
 ```bash
-  Power User Commands:
-  /search <type> <text>  - Vector search
-    ↳ <type>: none, query, document
-       • none: Direct vector encoding, no special instructions
-       • query: <text> is treated as a question, vectors in DB answer it
-       • document: Uses HyDE (Hypothetical Document Embedding)
-  /exp <type>  - Experience documents
-    ↳ <type>: list, years, skills
-       • list: List all experience docs
-       • years: Filter by years of experience
-       • skills: Filter by specific skills
-  /other <subtype>  - Retrieve other document types
-    ↳ <subtype>: cover-letter, publication-speaking, recommendation, thought-leadership
-       • cover-letter: Generate or retrieve cover letters
-       • publication-speaking: Documents related to publications or speaking engagements
-       • recommendation: Generate or retrieve recommendation documents
-       • thought-leadership: Thought leadership-related documents
-  /project <command>  - Project operations
-    ↳ <command>: list, type <subtype>, active
-       • list: List all projects
-       • type <subtype>: Filter projects by subtype
-         ↳ <subtype>: product, process, infrastructure, self_referential
-            • product: Projects related to product development
-            • process: Process improvement projects
-            • infrastructure: Infrastructure-related projects
-            • self_referential: Projects about improving the system itself
-       • active: Show active projects
-  /resume  - Start resume generator
-  
-  System Commands:
-  /clear  - Clear terminal
-  /status  - Show system status
-  /history [count]  - Display command history
-  /help  - Display this help message
+Power User Commands:
+/search <type> <text>  - Vector search
+  <type>: none, query, document
+/exp <type>            - Experience documents
+  <type>: list, years, skills
+/other <subtype>      - Other document types
+  <subtype>: cover-letter, publication-speaking, recommendation, thought-leadership
+/project <command>     - Project operations
+  <command>: list, type <subtype>, active
+/resume                - Start resume generator
+
+System Commands:
+/clear                 - Clear terminal
+/status                - Show system status
+/history [count]       - Display command history
+/help                  - Display help
 ```
-
-### Styling Architecture
-- Modular CSS with CSS Modules
-- Dynamic theme configuration
-- Responsive design
-- Mobile orientation handling
-- CRT effect layering
-
-### Error Handling
-- Centralized error management
-- Visual error states
-- Recovery system
-- Fallback content
-- Error logging
 
 ## Development
 
 ### Prerequisites
+
 ```bash
-Node.js >= 16
-npm >= 7
+Node.js >= 20
+npm >= 10
 ```
 
 ### Setup
+
 ```bash
-# Install dependencies
 npm install
-
-# Run development server
+npm run db:generate
 npm run dev
+```
 
-# Build for production
+The Python vector API should be running separately when exercising live document
+retrieval. By default the frontend expects it at `http://localhost:8000`.
+
+### Verification
+
+```bash
+npm run format
+npm run lint
+npm run build:ts -- --noEmit
+npm run test:unit
+npm run test:e2e
 npm run build
 ```
 
-### Environment Variables
+The full local gate is:
+
+```bash
+npm run check
+```
+
+## Environment Variables
+
 ```bash
 VECTOR_API_URL=http://localhost:8000
+DATABASE_URL=file:./prisma/dev.db
 ANTHROPIC_API_KEY=sk-ant-xxxx
+ANTHROPIC_CHAT_MODEL=claude-sonnet-4-6
+ANTHROPIC_BOOT_MODEL=claude-haiku-4-5
+ANTHROPIC_HAIKU_MODEL=claude-haiku-4-5
 PORT=3000 # Optional
 ```
 
-## Project Structure
-```
-virtualis-terminal/
-├── components/        # Contains reusable React components
-│   └── Terminal/      # Terminal-specific components and logic
-│       ├── utils/        # Utility functions for terminal operations
-│       ├── types/        # Type definitions related to Terminal
-│       ├── styles/       # Styling for Terminal components
-│       ├── handlers/     # Event and state handlers
-│       ├── controllers/  # Logic controllers for terminal interactions
-│       └── config/       # Configuration files for terminal behavior
-├── pages/            # Next.js page components
-│   ├── utils/        # Page-specific utilities
-│   ├── fonts/        # Font assets
-│   └── api/          # API routes
-│       ├── chat/         # Chat-related API endpoints
-│       └── boot/         # Boot sequence API endpoints
-├── lib/              # Core utilities and business logic
-│   ├── threads/      # Thread management utilities
-│   ├── prompts/      # AI prompt structures
-│   ├── mock/         # Mock data for testing
-│   ├── fallbacks/    # Fallback logic and defaults
-│   └── api/          # API request handling utilities
-├── prisma/           # Prisma ORM-related files
-│   ├── sessions/     # Database sessions management
-│   └── migrations/   # Database migration scripts
-├── public/           # Static assets (images, fonts, etc.)
-├── sessions/         # Active session management
-├── styles/           # Global styling
-└── types/            # Shared TypeScript type definitions
+Model defaults are centralized in `lib/api/anthropic-config.ts`. The main chat
+path defaults to Sonnet 4.6; boot and haiku generation default to Haiku 4.5.
+Each call path also supports optional `ANTHROPIC_*_MAX_TOKENS` and
+`ANTHROPIC_*_TEMPERATURE` overrides.
 
+## Project Structure
+
+```text
+virtualis-terminal/
+├── components/Terminal/     Terminal UI, controllers, handlers, styles
+├── lib/api/                 Anthropic config, vector client, codecs
+├── lib/chat/                Chat route modules and typed tool dispatch
+├── lib/fallbacks/           Boot and haiku fallback content
+├── lib/mock/                Mock development responses
+├── lib/prompts/             Boot, haiku, and chat prompts
+├── lib/threads/             Prisma session helpers
+├── pages/                   Next.js pages and API route adapters
+├── prisma/                  Prisma schema and migrations
+├── styles/                  Global styles
+├── tests/e2e/               Playwright coverage
+├── tests/unit/              Vitest coverage
+└── types/                   Shared TypeScript interfaces
 ```
 
 ## Code Style
+
 - Strict TypeScript
-- ESLint configuration
+- ESLint flat config with zero warnings
 - Prettier formatting
+- Focused unit tests for codecs and tool dispatch
+- Playwright coverage for the primary terminal surface

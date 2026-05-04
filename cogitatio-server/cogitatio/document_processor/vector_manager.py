@@ -8,11 +8,11 @@ import json
 import sqlite3
 from pathlib import Path
 from typing import List, Dict, Any, Optional, Tuple
-from datetime import datetime
 from cogitatio.utils.logging import ComponentLogger
 from .config import DATA_DIR, VECTOR_DIMENSION
 
 logger = ComponentLogger("vector_store")
+
 
 class VectorManager:
     """
@@ -42,11 +42,14 @@ class VectorManager:
         self.db_path = self.data_dir / "metadata.db"
         self._init_db()
         
-        logger.log_info("Vector store initialized", {
-            "dimension": dimension,
-            "total_vectors": self.index.ntotal,
-            "data_dir": str(self.data_dir)
-        })
+        logger.log_info(
+            "Vector store initialized",
+            {
+                "dimension": dimension,
+                "total_vectors": self.index.ntotal,
+                "data_dir": str(self.data_dir),
+            },
+        )
 
     def _load_or_create_index(self) -> faiss.Index:
         """Load existing index or create new one with proper error handling."""
@@ -108,7 +111,7 @@ class VectorManager:
 
             # Prepare vectors for FAISS
             vector_data = np.array([v['values'] for v in vectors]).astype('float32')
-            vector_data = vector_data / np.linalg.norm(vector_data, axis=1, keepdims=True)  # Normalize
+            vector_data = self._normalize_vectors(vector_data)
             
             # Add to FAISS
             start_idx = self.index.ntotal
@@ -126,11 +129,11 @@ class VectorManager:
                             vec['chunk_id'],
                             json.dumps(vec['metadata']),
                             vec.get('content', '')  # Ensure 'content' is provided
-                        )
+                        ),
                     )
             
             # Save index after successful update
-            self._save_index()
+            self._save_index(self.index)
             
             logger.log_info(f"Stored {len(vectors)} vectors", {
                 "total_vectors": self.index.ntotal
@@ -154,7 +157,7 @@ class VectorManager:
         try:
             # Ensure vector is in correct shape
             query_vector = query_vector.reshape(1, -1).astype('float32')
-            query_vector = query_vector / np.linalg.norm(query_vector, axis=1, keepdims=True)  # Normalize
+            query_vector = self._normalize_vectors(query_vector)
 
             # Search index
             distances, indices = self.index.search(query_vector, k)
@@ -193,51 +196,23 @@ class VectorManager:
             doc_id: Document ID to remove
         """
         try:
-            # Get vectors to remove
-            with sqlite3.connect(self.db_path) as conn:
-                cursor = conn.execute(
-                    "SELECT vector_id, chunk_id FROM metadata WHERE doc_id LIKE ?",
-                    (f"{doc_id}%",)
-                )
-                vector_entries = cursor.fetchall()
-                
-                if not vector_entries:
-                    logger.log_warning(f"No vectors found for document: {doc_id}")
-                    return
-                
-                vector_ids = [row[0] for row in vector_entries]
-                chunk_ids = [row[1] for row in vector_entries]
-                
-                # Create a set for faster lookup
-                vector_ids_set = set(vector_ids)
-                
-                # Extract vectors to keep
-                vectors_to_keep = [
-                    self.index.reconstruct(i) for i in range(self.index.ntotal) if i not in vector_ids_set
-                ]
-                
-                # Create new index
-                new_index = faiss.IndexFlatIP(self.dimension)  # Use inner product for cosine similarity
-                
-                if vectors_to_keep:
-                    vectors_array = np.array(vectors_to_keep).astype('float32')
-                    vectors_array = vectors_array / np.linalg.norm(vectors_array, axis=1, keepdims=True)  # Normalize
-                    new_index.add(vectors_array)
-                
-                # Update the in-memory index
-                self.index = new_index
-                
-                # Remove metadata entries
-                conn.execute("DELETE FROM metadata WHERE doc_id LIKE ?", (f"{doc_id}%",))
-                
-                # Save the updated index
-                self._save_index()
-                
-                logger.log_info(f"Removed vectors for document: {doc_id}", {
-                    "vectors_removed": len(vector_ids),
-                    "total_vectors": self.index.ntotal
-                })
-                
+            vectors_removed = self._remove_vectors_where(
+                "doc_id LIKE ?",
+                (f"{doc_id}%",),
+            )
+
+            if vectors_removed == 0:
+                logger.log_warning(f"No vectors found for document: {doc_id}")
+                return
+
+            logger.log_info(
+                f"Removed vectors for document: {doc_id}",
+                {
+                    "vectors_removed": vectors_removed,
+                    "total_vectors": self.index.ntotal,
+                },
+            )
+
         except Exception as e:
             logger.log_error(f"Failed to remove document: {doc_id}", {"error": str(e)})
             raise
@@ -250,57 +225,144 @@ class VectorManager:
             chunk_id: Unique identifier of the chunk to remove
         """
         try:
-            with sqlite3.connect(self.db_path) as conn:
-                # Retrieve the vector_id associated with the chunk_id
-                result = conn.execute(
-                    "SELECT vector_id FROM metadata WHERE chunk_id = ?",
-                    (chunk_id,)
-                ).fetchone()
-                
-                if not result:
-                    logger.log_warning(f"No vector found with chunk_id: {chunk_id}")
-                    return
-                
-                vector_id = result[0]
-                
-                # Create a new index excluding the vector to remove
-                vectors_to_keep = [
-                    self.index.reconstruct(i) for i in range(self.index.ntotal) if i != vector_id
-                ]
-                
-                new_index = faiss.IndexFlatIP(self.dimension)
-                
-                if vectors_to_keep:
-                    vectors_array = np.array(vectors_to_keep).astype('float32')
-                    vectors_array = vectors_array / np.linalg.norm(vectors_array, axis=1, keepdims=True)  # Normalize
-                    new_index.add(vectors_array)
-                
-                # Update the in-memory index
-                self.index = new_index
-                
-                # Remove metadata entry
-                conn.execute("DELETE FROM metadata WHERE chunk_id = ?", (chunk_id,))
-                
-                # Save the updated index
-                self._save_index()
-                
-                logger.log_info(f"Removed vector with chunk_id: {chunk_id}", {
-                    "total_vectors": self.index.ntotal
-                })
-                
+            vectors_removed = self._remove_vectors_where(
+                "chunk_id = ?",
+                (chunk_id,),
+            )
+
+            if vectors_removed == 0:
+                logger.log_warning(f"No vector found with chunk_id: {chunk_id}")
+                return
+
+            logger.log_info(
+                f"Removed vector with chunk_id: {chunk_id}",
+                {
+                    "vectors_removed": vectors_removed,
+                    "total_vectors": self.index.ntotal,
+                },
+            )
+
         except Exception as e:
             logger.log_error(f"Failed to remove vector with chunk_id: {chunk_id}", {"error": str(e)})
             raise
 
-    def _save_index(self) -> None:
+    def _normalize_vectors(self, vectors: np.ndarray) -> np.ndarray:
+        """
+        Normalize vectors for cosine similarity while rejecting zero vectors.
+        """
+        norms = np.linalg.norm(vectors, axis=1, keepdims=True)
+        if np.any(norms == 0):
+            raise ValueError("Cannot store or search zero-length vectors")
+        return vectors / norms
+
+    def _build_index(self, vectors: List[np.ndarray]) -> faiss.Index:
+        """
+        Build a fresh FAISS index from vectors ordered by their target positions.
+        """
+        new_index = faiss.IndexFlatIP(self.dimension)
+        if vectors:
+            vectors_array = np.array(vectors).astype('float32')
+            new_index.add(self._normalize_vectors(vectors_array))
+        return new_index
+
+    def _remove_vectors_where(self, where_clause: str, params: Tuple[Any, ...]) -> int:
+        """
+        Remove vectors matching a metadata predicate and remap survivor vector IDs.
+        """
+        old_index = self.index
+        index_file_replaced = False
+
+        with sqlite3.connect(self.db_path) as conn:
+            conn.execute("BEGIN IMMEDIATE")
+            try:
+                rows = conn.execute(
+                    "SELECT vector_id, chunk_id FROM metadata ORDER BY vector_id"
+                ).fetchall()
+                rows_to_remove = conn.execute(
+                    f"SELECT vector_id FROM metadata WHERE {where_clause}",
+                    params,
+                ).fetchall()
+                vector_ids_to_remove = {int(row[0]) for row in rows_to_remove}
+
+                if not vector_ids_to_remove:
+                    conn.rollback()
+                    return 0
+
+                vectors_to_keep = []
+                survivor_remap = []
+                for vector_id, chunk_id in rows:
+                    vector_id = int(vector_id)
+                    if vector_id in vector_ids_to_remove:
+                        continue
+                    if vector_id < 0 or vector_id >= old_index.ntotal:
+                        raise ValueError(
+                            f"Metadata vector_id {vector_id} is outside FAISS index size {old_index.ntotal}"
+                        )
+                    vectors_to_keep.append(old_index.reconstruct(vector_id))
+                    survivor_remap.append((len(survivor_remap), chunk_id))
+
+                new_index = self._build_index(vectors_to_keep)
+
+                conn.execute(f"DELETE FROM metadata WHERE {where_clause}", params)
+                conn.execute("UPDATE metadata SET vector_id = -vector_id - 1")
+                conn.executemany(
+                    "UPDATE metadata SET vector_id = ? WHERE chunk_id = ?",
+                    survivor_remap,
+                )
+                self._assert_index_metadata_consistency(conn, new_index)
+
+                self._save_index(new_index)
+                index_file_replaced = True
+                conn.commit()
+                self.index = new_index
+                return len(vector_ids_to_remove)
+            except Exception:
+                conn.rollback()
+                self.index = old_index
+                if index_file_replaced:
+                    self._save_index(old_index)
+                raise
+
+    def _assert_index_metadata_consistency(
+        self,
+        conn: sqlite3.Connection,
+        index: faiss.Index,
+    ) -> None:
+        """
+        Verify that persisted metadata IDs exactly match FAISS row positions.
+        """
+        rows = conn.execute(
+            "SELECT vector_id FROM metadata ORDER BY vector_id"
+        ).fetchall()
+        vector_ids = [int(row[0]) for row in rows]
+        expected_ids = list(range(index.ntotal))
+        if vector_ids != expected_ids:
+            raise ValueError(
+                f"Metadata vector IDs {vector_ids} do not match FAISS positions {expected_ids}"
+            )
+
+    def _save_index(self, index: Optional[faiss.Index] = None) -> None:
         """Safely save the FAISS index with backup."""
+        index_to_save = index if index is not None else self.index
+        tmp_path = None
+
         try:
+            with tempfile.NamedTemporaryFile(
+                delete=False,
+                dir=self.data_dir,
+                suffix=".index.tmp",
+            ) as tmp_file:
+                tmp_path = Path(tmp_file.name)
+
+            faiss.write_index(index_to_save, str(tmp_path))
+
             # Create backup of current index if it exists
             if self.index_path.exists():
+                if self.backup_path.exists():
+                    self.backup_path.unlink()
                 self.index_path.rename(self.backup_path)
-            
-            # Save new index
-            faiss.write_index(self.index, str(self.index_path))
+
+            os.replace(tmp_path, self.index_path)
             
             # Remove backup if save successful
             if self.backup_path.exists():
@@ -308,6 +370,8 @@ class VectorManager:
                 
         except Exception as e:
             logger.log_error("Failed to save index", {"error": str(e)})
+            if tmp_path and tmp_path.exists():
+                tmp_path.unlink()
             # Attempt to restore backup
             if self.backup_path.exists():
                 self.backup_path.rename(self.index_path)

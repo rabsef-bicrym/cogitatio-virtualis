@@ -1,10 +1,12 @@
 // cogitatio-virtualis/virtualis-terminal/components/Terminal/types/terminal.ts
 
-import type { PrintableItem } from 'crt-terminal';
-import type { DeepPartial } from '../utils/deepMerge';
+import type { TerminalProps } from "crt-terminal";
+import type { DeepPartial } from "../utils/deepMerge";
 
-export type ControllerType = 'boot' | 'chat' | null;
-export type OperationalMode = 'NORMAL' | 'ERROR' | 'RECOVERY';
+export type PrintableItem = NonNullable<TerminalProps["banner"]>;
+
+export type ControllerType = "boot" | "chat" | null;
+export type OperationalMode = "NORMAL" | "ERROR" | "RECOVERY";
 
 export interface TerminalTheme {
   background: string;
@@ -58,7 +60,7 @@ export interface TerminalConfig {
     historySize: number;
     scrollbackSize: number;
     cursorBlink: boolean;
-    cursorStyle: 'block' | 'underline' | 'bar';
+    cursorStyle: "block" | "underline" | "bar";
   };
 }
 
@@ -86,5 +88,3 @@ export interface PrinterConfig {
   pauseAfterPrint?: number;
   lineSpacing?: number;
 }
-
-export type { PrintableItem };

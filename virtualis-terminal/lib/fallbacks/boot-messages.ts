@@ -5,16 +5,16 @@
  * Format: [HEADER] - message
  */
 export const FALLBACK_MESSAGES = [
-  '[INIT] - Loading professional experience database',
-  '[SCAN] - Analyzing career progression patterns',
-  '[PROC] - Indexing skills and achievements',
-  '[SYNC] - Calibrating project impact metrics',
-  '[READY] - Resume analysis system initialized',
-  '[SCAN] - Processing educational background',
-  '[PROC] - Computing skill correlations',
-  '[SYNC] - Optimizing search parameters',
-  '[INIT] - Preparing document vectors',
-  '[READY] - Interactive resume system online',
+  "[INIT] - Loading professional experience database",
+  "[SCAN] - Analyzing career progression patterns",
+  "[PROC] - Indexing skills and achievements",
+  "[SYNC] - Calibrating project impact metrics",
+  "[READY] - Resume analysis system initialized",
+  "[SCAN] - Processing educational background",
+  "[PROC] - Computing skill correlations",
+  "[SYNC] - Optimizing search parameters",
+  "[INIT] - Preparing document vectors",
+  "[READY] - Interactive resume system online",
 ] as const;
 
 /**

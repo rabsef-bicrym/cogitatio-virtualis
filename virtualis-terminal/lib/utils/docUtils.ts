@@ -3,9 +3,6 @@
  * including type guards, transformations, search result organization,
  * and combined document structures.
  *
- * This file is intended as a drop-in replacement for the existing docUtils.ts.
- * It preserves all existing functionality while improving overall organization
- * and clarity.
  */
 
 import {
@@ -18,7 +15,7 @@ import {
   ExperienceDocument,
   EducationDocument,
   SearchResult,
-} from '@/types/documents';
+} from "@/types/documents";
 
 /* -------------------------------------------------------------------------
  * SECTION A: TYPE GUARDS
@@ -161,7 +158,7 @@ export const documentFormatters = {
    * @returns A combined date range string.
    */
   dateRange: (start: string, end: string): string => {
-    return `${start} - ${end === 'Present' ? 'Present' : end}`;
+    return `${start} - ${end === "Present" ? "Present" : end}`;
   },
 
   /**
@@ -171,9 +168,9 @@ export const documentFormatters = {
    * @returns A single string listing all items, or empty string if none.
    */
   list: (items: string[]): string => {
-    if (items.length === 0) return '';
+    if (items.length === 0) return "";
     if (items.length === 1) return items[0];
-    return `${items.slice(0, -1).join(', ')} and ${items.slice(-1)}`;
+    return `${items.slice(0, -1).join(", ")} and ${items.slice(-1)}`;
   },
 
   /**
@@ -214,9 +211,7 @@ export const documentFormatters = {
  * @param data - An array of DocumentResponse objects.
  * @returns An array of deduplicated and sorted project summary objects.
  */
-export function transformProjectResults(
-  data: DocumentResponse[],
-): Array<{
+export function transformProjectResults(data: DocumentResponse[]): Array<{
   doc_id: string;
   total_chunks: number;
   title: string;
@@ -314,7 +309,7 @@ export function createProjectListMessage(
   });
 
   // Combine the intro message with the enumerated list of projects.
-  return `${introMessage}\n${listItems.join('\n')}`;
+  return `${introMessage}\n${listItems.join("\n")}`;
 }
 
 /* -------------------------------------------------------------------------
@@ -332,9 +327,7 @@ export function createProjectListMessage(
  * @param data - An array of DocumentResponse objects.
  * @returns An array of deduplicated and sorted experience summaries.
  */
-export function transformExperienceResults(
-  data: DocumentResponse[],
-): Array<{
+export function transformExperienceResults(data: DocumentResponse[]): Array<{
   doc_id: string;
   total_chunks: number;
   title: string;
@@ -423,7 +416,10 @@ export function createExperienceListMessage(
   // Map doc_id -> full Document object for detailed metadata.
   const docMap = new Map<string, Document>();
   for (const response of rawData) {
-    if (isExperienceDocument(response.metadata) && !docMap.has(response.doc_id)) {
+    if (
+      isExperienceDocument(response.metadata) &&
+      !docMap.has(response.doc_id)
+    ) {
       docMap.set(response.doc_id, response.metadata);
     }
   }
@@ -438,7 +434,7 @@ export function createExperienceListMessage(
     return `${idx + 1}. ${summary}`;
   });
 
-  return `${introMessage}\n${listItems.join('\n')}`;
+  return `${introMessage}\n${listItems.join("\n")}`;
 }
 
 /* -------------------------------------------------------------------------
@@ -456,12 +452,10 @@ export function createExperienceListMessage(
  * @param data - An array of DocumentResponse objects.
  * @returns An array of deduplicated "other document" summaries.
  */
-export function transformOtherResults(
-  data: DocumentResponse[],
-): Array<{
+export function transformOtherResults(data: DocumentResponse[]): Array<{
   doc_id: string;
   total_chunks: number;
-  subtype: OtherSubType;
+  sub_type: OtherSubType;
   title: string;
 }> {
   const uniqueOthers = new Map<
@@ -469,7 +463,7 @@ export function transformOtherResults(
     {
       doc_id: string;
       total_chunks: number;
-      subtype: OtherSubType;
+      sub_type: OtherSubType;
       title: string;
     }
   >();
@@ -482,7 +476,7 @@ export function transformOtherResults(
       uniqueOthers.set(doc_id, {
         doc_id,
         total_chunks,
-        subtype: metadata.subtype,
+        sub_type: metadata.sub_type,
         title: metadata.title,
       });
     }
@@ -504,7 +498,7 @@ export function createOtherListMessage(
   transformedData: Array<{
     doc_id: string;
     total_chunks: number;
-    subtype: OtherSubType;
+    sub_type: OtherSubType;
     title: string;
   }>,
   rawData: DocumentResponse[],
@@ -529,10 +523,10 @@ export function createOtherListMessage(
       return `${idx + 1}. [no metadata available]`;
     }
     const summary = documentFormatters.summary(doc);
-    return `${idx + 1}. ${summary} (${info.subtype})`;
+    return `${idx + 1}. ${summary} (${info.sub_type})`;
   });
 
-  return `${introMessage}\n${listItems.join('\n')}`;
+  return `${introMessage}\n${listItems.join("\n")}`;
 }
 
 /* -------------------------------------------------------------------------
@@ -631,28 +625,26 @@ export const searchUtils = {
  */
 export function createSearchResultsMessage(results: SearchResult[]): string {
   if (!results || results.length === 0) {
-    return 'No search results found.';
+    return "No search results found.";
   }
 
   // Group the results by doc_id and sort by top score.
   const groupedResults = searchUtils.groupByDocument(results);
 
   const lines: string[] = [];
-  lines.push('Vector Search Returned:');
-  lines.push('(Select by number or use natural language to proceed)');
+  lines.push("Vector Search Returned:");
+  lines.push("(Select by number or use natural language to proceed)");
 
   let docCounter = 1;
 
   // For each group, order chunks, then display an excerpt of each chunk.
-  groupedResults.forEach(({ docId, results: docSearchResults, topScore }) => {
+  groupedResults.forEach(({ results: docSearchResults, topScore }) => {
     const orderedChunks = searchUtils.orderChunks(docSearchResults);
 
     // We assume all chunks share the same document metadata.
     const document = orderedChunks[0].metadata as Document;
     const docTitle = document.title;
     const docType = document.type;
-    const chunkCount = orderedChunks.length;
-
     // Format the top score for display (percentage-like).
     const formattedScore = (topScore * 100).toFixed(1);
 
@@ -661,13 +653,13 @@ export function createSearchResultsMessage(results: SearchResult[]): string {
     );
 
     orderedChunks.forEach((res) => {
-      let excerpt = res.content.replace(/\n/g, ' ');
-      if (excerpt.startsWith('## ')) {
-        excerpt = excerpt.replace(/^##\s*/, '')
+      let excerpt = res.content.replace(/\n/g, " ");
+      if (excerpt.startsWith("## ")) {
+        excerpt = excerpt.replace(/^##\s*/, "");
       }
 
       if (excerpt.length > 75) {
-        excerpt = excerpt.slice(0, 75) + '...';
+        excerpt = excerpt.slice(0, 75) + "...";
       }
       lines.push(`  - ${excerpt}`);
     });
@@ -675,7 +667,7 @@ export function createSearchResultsMessage(results: SearchResult[]): string {
     docCounter++;
   });
 
-  return lines.join('\n');
+  return lines.join("\n");
 }
 
 /* -------------------------------------------------------------------------
@@ -695,10 +687,10 @@ export const documentSorters = {
    */
   byDate: (a: Document, b: Document): number => {
     const getDate = (doc: Document): string => {
-      if (isExperienceDocument(doc)) return doc.date_end || 'Present';
+      if (isExperienceDocument(doc)) return doc.date_end || "Present";
       if (isEducationDocument(doc)) return doc.graduation_date;
-      if (isProjectDocument(doc)) return doc.date_end || 'Present';
-      return '0';
+      if (isProjectDocument(doc)) return doc.date_end || "Present";
+      return "0";
     };
     return getDate(b).localeCompare(getDate(a));
   },
@@ -766,7 +758,8 @@ export const documentAnalysis = {
     let totalMonths = 0;
     docs.forEach((doc) => {
       const start = new Date(doc.date_start);
-      const end = doc.date_end === 'Present' ? new Date() : new Date(doc.date_end);
+      const end =
+        doc.date_end === "Present" ? new Date() : new Date(doc.date_end);
       totalMonths +=
         (end.getFullYear() - start.getFullYear()) * 12 +
         (end.getMonth() - start.getMonth());
@@ -783,4 +776,4 @@ export const documentAnalysis = {
  * -------------------------------------------------------------------------
  */
 
-export * as docUtils from './docUtils';
+export * as docUtils from "./docUtils";

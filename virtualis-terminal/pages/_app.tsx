@@ -1,32 +1,35 @@
 // cogitatio-virtualis/virtualis-terminal/pages/_app.tsx
 
-import type { AppProps } from 'next/app'
-import { useEffect } from 'react'
-import Head from 'next/head'
-import '../styles/globals.css'
+import type { AppProps } from "next/app";
+import { useEffect } from "react";
+import Head from "next/head";
+import "../styles/globals.css";
 
 function preventZoom(e: TouchEvent) {
   // Prevent pinch zoom
   if (e.touches.length > 1) {
-    e.preventDefault()
+    e.preventDefault();
   }
 }
 
 export default function App({ Component, pageProps }: AppProps) {
   useEffect(() => {
     // Add touch event listeners for mobile
-    document.addEventListener('touchmove', preventZoom, { passive: false })
-    
+    document.addEventListener("touchmove", preventZoom, { passive: false });
+
     // Remove event listeners on cleanup
     return () => {
-      document.removeEventListener('touchmove', preventZoom)
-    }
-  }, [])
+      document.removeEventListener("touchmove", preventZoom);
+    };
+  }, []);
 
   return (
     <>
       <Head>
-        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+        <meta
+          name="viewport"
+          content="width=device-width, initial-scale=1, maximum-scale=1"
+        />
       </Head>
       <Component {...pageProps} />
       <style jsx global>{`
@@ -57,5 +60,5 @@ export default function App({ Component, pageProps }: AppProps) {
         }
       `}</style>
     </>
-  )
+  );
 }

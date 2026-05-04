@@ -4,18 +4,18 @@ import type {
   PrintableItem,
   TerminalHandle,
   TerminalConfig,
-} from '../types/terminal';
-import type { DeepPartial } from '@/components/Terminal/utils/deepMerge';
+} from "../types/terminal";
+import type { DeepPartial } from "@/components/Terminal/utils/deepMerge";
 import type {
   Controller,
   ControllerState,
   ControllerStatus,
-} from '@/components/Terminal/controllers/types';
+} from "@/components/Terminal/controllers/types";
 
 export abstract class BaseController implements Controller {
   protected terminal: TerminalHandle | null = null;
   protected state: ControllerState = {
-    status: 'initializing',
+    status: "initializing",
     error: null,
   };
 
@@ -58,7 +58,7 @@ export abstract class BaseController implements Controller {
       queue?: boolean;
     } = {},
   ): Promise<void> {
-    if (!this.terminal) throw new Error('Terminal not initialized');
+    if (!this.terminal) throw new Error("Terminal not initialized");
 
     const printOperation = () => this.terminal!.print(items);
 
@@ -87,7 +87,7 @@ export abstract class BaseController implements Controller {
    * Update terminal configuration
    */
   protected updateConfig(config: DeepPartial<TerminalConfig>): void {
-    if (!this.terminal) throw new Error('Terminal not initialized');
+    if (!this.terminal) throw new Error("Terminal not initialized");
     this.terminal.requestConfig(config);
   }
 
@@ -114,22 +114,22 @@ export abstract class BaseController implements Controller {
    * Terminal utilities
    */
   protected async clear(): Promise<void> {
-    if (!this.terminal) throw new Error('Terminal not initialized');
+    if (!this.terminal) throw new Error("Terminal not initialized");
     this.terminal.clear();
   }
 
   protected async lock(isLocked: boolean): Promise<void> {
-    if (!this.terminal) throw new Error('Terminal not initialized');
+    if (!this.terminal) throw new Error("Terminal not initialized");
     this.terminal.lock(isLocked);
   }
 
   protected async setLoading(isLoading: boolean): Promise<void> {
-    if (!this.terminal) throw new Error('Terminal not initialized');
+    if (!this.terminal) throw new Error("Terminal not initialized");
     this.terminal.loading(isLoading);
   }
 
   protected focus(): void {
-    if (!this.terminal) throw new Error('Terminal not initialized');
+    if (!this.terminal) throw new Error("Terminal not initialized");
     this.terminal.focus();
   }
 }

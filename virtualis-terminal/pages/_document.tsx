@@ -1,16 +1,21 @@
 // cogitatio-virtualis/virtualis-terminal/virtualis-terminal/pages/_document.tsx
 
-import { Html, Head, Main, NextScript } from 'next/document'
+import { Html, Head, Main, NextScript } from "next/document";
 
 export default function Document() {
   return (
     <Html lang="en">
       <Head>
-        <meta name="description" content="Cogitation Terminal - Neural Interface for Legal Knowledge" />
+        <meta
+          name="description"
+          content="Cogitation Terminal - Neural Interface for Legal Knowledge"
+        />
         <link rel="icon" href="/favicon.ico" />
-        
+
         {/* Critical CRT effects - loaded immediately */}
-        <style dangerouslySetInnerHTML={{ __html: `
+        <style
+          dangerouslySetInnerHTML={{
+            __html: `
           @keyframes scanline {
             0% {
               transform: translateY(-100%);
@@ -81,12 +86,14 @@ export default function Document() {
             -webkit-font-smoothing: none;
             -moz-osx-font-smoothing: grayscale;
           }
-        ` }} />
+        `,
+          }}
+        />
       </Head>
       <body>
         <Main />
         <NextScript />
       </body>
     </Html>
-  )
+  );
 }

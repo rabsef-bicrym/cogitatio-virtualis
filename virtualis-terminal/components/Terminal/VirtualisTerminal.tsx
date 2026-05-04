@@ -1,8 +1,14 @@
 // cogitatio-virtualis/virtualis-terminal/components/Terminal/VirtualisTerminal.tsx
 
-import React, { useEffect, useMemo, useCallback, useState } from 'react';
-import { Terminal as CRTTerminal, useEventQueue } from 'crt-terminal';
-import type { Controller } from './controllers/types';
+import React, {
+  useEffect,
+  useMemo,
+  useCallback,
+  useRef,
+  useState,
+} from "react";
+import { Terminal as CRTTerminal, useEventQueue } from "crt-terminal";
+import type { Controller } from "./controllers/types";
 import type {
   TerminalHandle,
   TerminalConfig,
@@ -10,22 +16,20 @@ import type {
   PrintableItem,
   ControllerType,
   OperationalMode,
-} from './types/terminal';
-import { BootController } from './controllers/BootController';
-import { ChatController } from './controllers/ChatController';
-import { DEFAULT_CONFIG } from './styles/terminal.styles';
-import { deepMerge } from './utils/deepMerge';
+} from "./types/terminal";
+import { BootController } from "./controllers/BootController";
+import { ChatController } from "./controllers/ChatController";
+import { DEFAULT_CONFIG } from "./styles/terminal.styles";
+import { deepMerge } from "./utils/deepMerge";
 import {
-  textWord, // TODO: Enable claude to interact with user through textWords and...
-  buttonWord, // TODO: buttonWords
   sendEmptyLine,
   sendBorderedEmptyLine,
   sendLine,
   sendMultiLine,
-} from './utils/printUtils';
-import TerminalFrame from './TerminalFrame';
-import { ASCII_ERROR_LINES } from './config/ascii.config';
-import { DeepPartial } from '@/components/Terminal/utils/deepMerge';
+} from "./utils/printUtils";
+import TerminalFrame from "./TerminalFrame";
+import { ASCII_ERROR_LINES } from "./config/ascii.config";
+import { DeepPartial } from "@/components/Terminal/utils/deepMerge";
 
 export interface VirtualisTerminalProps {
   className?: string;
@@ -37,14 +41,21 @@ export const VirtualisTerminal: React.FC<VirtualisTerminalProps> = ({
   initialConfig,
 }) => {
   const eventQueue = useEventQueue();
-  const [currentResolver, setCurrentResolver] = useState<(() => void) | null>(
-    null,
+  const currentResolver = useRef<(() => void) | null>(null);
+  const createAndMountControllerRef = useRef<
+    (type: ControllerType) => Promise<void>
+  >(async () => {});
+  const handleErrorRef = useRef<(error: Error) => Promise<void>>(
+    async () => {},
   );
+  const performRecoveryRef = useRef(async (): Promise<void> => {});
+  const controllerRef = useRef<Controller | null>(null);
+  const clearTerminalRef = useRef(async (): Promise<void> => {});
   const [controller, setController] = useState<Controller | null>(null);
 
   const [terminalState, setTerminalState] = useState<TerminalState>({
-    mode: 'NORMAL',
-    designatedController: 'boot',
+    mode: "NORMAL",
+    designatedController: "boot",
     isLocked: false,
     isLoading: false,
     isFocused: false,
@@ -58,16 +69,25 @@ export const VirtualisTerminal: React.FC<VirtualisTerminalProps> = ({
   const [config, setConfig] = useState<TerminalConfig>(DEFAULT_CONFIG);
 
   const handleLineComplete = useCallback(() => {
-    if (currentResolver) {
-      currentResolver();
-      setCurrentResolver(null);
+    if (currentResolver.current) {
+      currentResolver.current();
+      currentResolver.current = null;
     }
-  }, [currentResolver]);
+  }, []);
+
+  const handlePrintStatusChange = useCallback(
+    (isPrinting: boolean) => {
+      if (!isPrinting) {
+        handleLineComplete();
+      }
+    },
+    [handleLineComplete],
+  );
 
   const handlePrint = useCallback(
     (items: PrintableItem) => {
       return new Promise<void>((resolve) => {
-        setCurrentResolver(() => resolve);
+        currentResolver.current = resolve;
         eventQueue.handlers.print(items);
       });
     },
@@ -108,8 +128,6 @@ export const VirtualisTerminal: React.FC<VirtualisTerminalProps> = ({
     [],
   );
 
-  // This useCallback intentionally omits handleError to avoid a circular dependency
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   const createAndMountController = useCallback(
     async (type: ControllerType): Promise<void> => {
       if (!type) return;
@@ -117,24 +135,24 @@ export const VirtualisTerminal: React.FC<VirtualisTerminalProps> = ({
       try {
         const newController = (() => {
           switch (type) {
-            case 'boot':
+            case "boot":
               return new BootController({
                 onBootComplete: async () => {
                   setTerminalState((prev) => ({
                     ...prev,
-                    designatedController: 'chat',
+                    designatedController: "chat",
                   }));
-                  await createAndMountController('chat');
+                  await createAndMountControllerRef.current("chat");
                 },
               });
-            case 'chat':
+            case "chat":
               // Correct implementation (commented for testing):
               return new ChatController({
                 onChatComplete: () => {
                   setTerminalState((prev) => ({
                     ...prev,
                     designatedController: null,
-                    mode: 'NORMAL',
+                    mode: "NORMAL",
                   }));
                 },
               });
@@ -155,16 +173,15 @@ export const VirtualisTerminal: React.FC<VirtualisTerminalProps> = ({
         setController(newController);
       } catch (error) {
         console.error(`[VirtualisTerminal] Mount error:`, error);
-        await handleError(error as Error);
+        await handleErrorRef.current(error as Error);
       }
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [terminalHandle],
   );
 
   const handleError = useCallback(
     async (error: Error) => {
-      console.error('[VirtualisTerminal] Error:', error);
+      console.error("[VirtualisTerminal] Error:", error);
 
       // Properly update state preserving other fields
       setTerminalState((prev) => ({
@@ -179,19 +196,16 @@ export const VirtualisTerminal: React.FC<VirtualisTerminalProps> = ({
           setController(null);
         } catch (unmountError) {
           console.error(
-            '[VirtualisTerminal] Unmount error during error handling:',
+            "[VirtualisTerminal] Unmount error during error handling:",
             unmountError,
           );
         }
       }
 
-      handleModeTransition('ERROR', error);
+      handleModeTransition("ERROR", error);
       await terminalHandle.clear();
-      const title = 'SYSTEM ERROR';
+      const title = "SYSTEM ERROR";
       const errorMessage = error.message;
-      const emptyLine = {
-        words: [{ type: 'text', text: '\u00A0', options: {} }],
-      };
 
       const errorItems = (): PrintableItem[] => {
         return [
@@ -202,38 +216,38 @@ export const VirtualisTerminal: React.FC<VirtualisTerminalProps> = ({
           sendLine(
             [
               {
-                type: 'text' as const,
+                type: "text" as const,
                 characters: title,
-                className: 'error-title',
+                className: "error-title",
               },
             ],
-            { lineClassName: 'error-line' },
+            { lineClassName: "error-line" },
           ),
           sendBorderedEmptyLine(),
           sendLine(
             [
               {
-                type: 'text' as const,
+                type: "text" as const,
                 characters: errorMessage,
-                className: 'error-message',
+                className: "error-message",
               },
             ],
-            { lineClassName: 'error-line' },
+            { lineClassName: "error-line" },
           ),
           sendBorderedEmptyLine(),
           sendLine(
             [
               {
-                type: 'button' as const,
-                characters: 'Reboot Cogitation Terminal',
+                type: "button" as const,
+                characters: "Reboot Cogitation Terminal",
                 onClick: async () => {
-                  await handleModeTransition('RECOVERY');
-                  await performRecovery();
+                  await handleModeTransition("RECOVERY");
+                  await performRecoveryRef.current();
                 },
-                className: 'restart-button',
+                className: "restart-button",
               },
             ],
-            { lineClassName: 'error-line' },
+            { lineClassName: "error-line" },
           ),
           sendBorderedEmptyLine(),
           sendMultiLine(ASCII_ERROR_LINES),
@@ -250,7 +264,6 @@ export const VirtualisTerminal: React.FC<VirtualisTerminalProps> = ({
         isLocked: true,
       }));
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [controller, terminalHandle, handleModeTransition],
   );
 
@@ -261,13 +274,13 @@ export const VirtualisTerminal: React.FC<VirtualisTerminalProps> = ({
         await controller.unmount();
         setController(null);
       } catch (error) {
-        console.error('[VirtualisTerminal] Recovery unmount error:', error);
+        console.error("[VirtualisTerminal] Recovery unmount error:", error);
       }
     }
 
     setTerminalState({
-      mode: 'NORMAL',
-      designatedController: 'boot',
+      mode: "NORMAL",
+      designatedController: "boot",
       isLocked: false,
       isLoading: false,
       isFocused: false,
@@ -280,13 +293,18 @@ export const VirtualisTerminal: React.FC<VirtualisTerminalProps> = ({
     });
     await terminalHandle.lock(false);
     setConfig(baseConfig);
-    await createAndMountController('boot');
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [controller, terminalHandle, baseConfig, createAndMountController]);
+    await createAndMountController("boot");
+  }, [
+    controller,
+    terminalHandle,
+    mergeConfig,
+    baseConfig,
+    createAndMountController,
+  ]);
 
   const handleCommand = useCallback(
     async (command: string) => {
-      if (terminalState.mode !== 'NORMAL' || !controller?.handleCommand) return;
+      if (terminalState.mode !== "NORMAL" || !controller?.handleCommand) return;
 
       try {
         await controller.handleCommand(command);
@@ -297,35 +315,47 @@ export const VirtualisTerminal: React.FC<VirtualisTerminalProps> = ({
     [controller, terminalState.mode, handleError],
   );
 
-  // This effect is intentionally designed to run only once at component initialization
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    eventQueue.handlers.clear();
-    createAndMountController('boot').catch(handleError);
+    createAndMountControllerRef.current = createAndMountController;
+    handleErrorRef.current = handleError;
+    performRecoveryRef.current = performRecovery;
+    clearTerminalRef.current = async () => {
+      eventQueue.handlers.clear();
+    };
+  }, [createAndMountController, handleError, performRecovery, eventQueue]);
+
+  useEffect(() => {
+    controllerRef.current = controller;
+  }, [controller]);
+
+  useEffect(() => {
+    clearTerminalRef.current();
+    createAndMountControllerRef.current("boot").catch((error) => {
+      handleErrorRef.current(error);
+    });
 
     return () => {
-      if (controller) {
-        controller.unmount().catch(console.error);
+      if (controllerRef.current) {
+        controllerRef.current.unmount().catch(console.error);
       }
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const terminalProps = useMemo(
     () => ({
       queue: eventQueue,
       onCommand: handleCommand,
-      onLineComplete: handleLineComplete,
-      prompt: '>',
-      cursorSymbol: '█',
+      prompt: ">",
+      cursorSymbol: "█",
       maxHistoryCommands: config.settings.historySize,
       loader: {
         slides: config.loader.slides,
         loaderSpeed: config.loader.loaderSpeed,
       },
       printer: {
-        speed: config.printer.speed,
+        printerSpeed: config.printer.speed,
         charactersPerTick: config.printer.charactersPerTick,
+        onPrintStatusChange: handlePrintStatusChange,
       },
       effects: {
         scanner: config.effects.scanlines,
@@ -334,7 +364,7 @@ export const VirtualisTerminal: React.FC<VirtualisTerminalProps> = ({
         textEffects: config.effects.textAnimations,
       },
     }),
-    [eventQueue, handleCommand, handleLineComplete, config],
+    [eventQueue, handleCommand, handlePrintStatusChange, config],
   );
 
   return (

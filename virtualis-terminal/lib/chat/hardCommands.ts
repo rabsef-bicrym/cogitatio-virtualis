@@ -1,4 +1,4 @@
-// cogitatio-virtualis/virtualis-terminal/pages/api/chat/hardCommands.ts
+// cogitatio-virtualis/virtualis-terminal/lib/chat/hardCommands.ts
 
 /**
  *
@@ -10,8 +10,8 @@
  * Note: The above is no longer true, we are starting to summarize the data in particular ways
  */
 
-import { vectorApi } from '@/lib/api/vector';
-import { docUtils } from '@/lib/utils/docUtils';
+import { vectorApi } from "@/lib/api/vector";
+import { docUtils } from "@/lib/utils/docUtils";
 import {
   ExperienceDocument,
   ProjectDocument,
@@ -19,9 +19,7 @@ import {
   DocumentType,
   ProjectSubType,
   OtherSubType,
-  DocumentResponse,
-} from '@/types/documents';
-import { error } from 'console';
+} from "@/types/documents";
 
 /**
  * Basic response shape for slash commands.
@@ -31,7 +29,77 @@ import { error } from 'console';
 export interface HardCommandResponse {
   success: boolean;
   message: string;
-  data?: any; // We keep it broad, as different commands can return different shapes
+  data?: unknown;
+}
+
+export type ExperienceSubcommand = "list" | "years" | "skills";
+export type ProjectSubcommand = "list" | "type" | "active";
+export type SearchEmbeddingType = "none" | "query" | "document";
+
+export interface DocIdCommandInput {
+  docId?: string;
+  secret?: boolean;
+}
+
+export interface DocsCommandInput {
+  docType?: DocumentType;
+  secret?: boolean;
+}
+
+export interface ProjectCommandInput {
+  subcommand?: ProjectSubcommand;
+  subtype?: ProjectSubType;
+}
+
+export interface ExperienceCommandInput {
+  subcommand?: ExperienceSubcommand;
+}
+
+export interface SearchCommandInput {
+  embeddingType: SearchEmbeddingType;
+  query: string;
+}
+
+export interface OtherCommandInput {
+  subtype?: OtherSubType;
+}
+
+export interface HardCommandOperations {
+  runDocIdCommand(input: DocIdCommandInput): Promise<HardCommandResponse>;
+  runDocsCommand(input: DocsCommandInput): Promise<HardCommandResponse>;
+  runProjectCommand(input: ProjectCommandInput): Promise<HardCommandResponse>;
+  runExperienceCommand(
+    input: ExperienceCommandInput,
+  ): Promise<HardCommandResponse>;
+  runSearchCommand(input: SearchCommandInput): Promise<HardCommandResponse>;
+  runOtherCommand(input: OtherCommandInput): Promise<HardCommandResponse>;
+  runStatusCommand(): Promise<HardCommandResponse>;
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function parseSearchArgs(args: string[]): SearchCommandInput | null {
+  let embeddingType: SearchEmbeddingType = "none";
+  let query = "";
+
+  if (args.length === 0) {
+    return null;
+  }
+
+  if (["none", "query", "document"].includes(args[0].toLowerCase())) {
+    embeddingType = args[0].toLowerCase() as SearchEmbeddingType;
+    query = args.slice(1).join(" ").trim();
+  } else {
+    query = args.join(" ").trim();
+  }
+
+  if (!query) {
+    return null;
+  }
+
+  return { embeddingType, query };
 }
 
 /**
@@ -43,47 +111,66 @@ export async function handleHardCommand(
   secret?: boolean,
 ): Promise<HardCommandResponse> {
   // Remove leading slash (if present) and split
-  const [cmd, ...args] = command.replace(/^\/+/, '').split(' ');
+  const [cmd, ...args] = command.replace(/^\/+/, "").split(" ");
 
   try {
     switch (cmd.toLowerCase()) {
-      case 'resume':
+      case "resume":
         return {
           success: true,
           message:
-            'Loading resume generation subroutine... Please provide a natural language job description as your next input:',
+            "Loading resume generation subroutine... Please provide a natural language job description as your next input:",
         };
-      case 'doc_id':
-        return await handleDocIdCommand(args, secret);
-      case 'docs':
-        return await handleDocsCommand(args, secret);
+      case "doc_id":
+        return await runDocIdCommand({ docId: args[0], secret });
+      case "docs":
+        return await runDocsCommand({
+          docType: args[0] as DocumentType | undefined,
+          secret,
+        });
 
-      case 'project':
-        return await handleProjectCommand(args);
+      case "project":
+        return await runProjectCommand({
+          subcommand: (args[0] as ProjectSubcommand | undefined) ?? "list",
+          subtype: args[1] as ProjectSubType | undefined,
+        });
 
-      case 'exp':
-        return await handleExperienceCommand(args);
+      case "exp":
+        return await runExperienceCommand({
+          subcommand:
+            (args[0]?.toLowerCase() as ExperienceSubcommand) ?? "list",
+        });
 
-      case 'search':
-        return await handleSearchCommand(args);
+      case "search": {
+        const input = parseSearchArgs(args);
+        if (!input) {
+          return {
+            success: false,
+            message: "Usage: /search [none|query|document] <query>",
+          };
+        }
+        return await runSearchCommand(input);
+      }
 
-      case 'other':
-        return await handleOtherCommand(args);
+      case "other":
+        return await runOtherCommand({
+          subtype: args[0] as OtherSubType | undefined,
+        });
 
-      case 'help':
-        return handleHelpCommand();
+      case "help":
+        return runHelpCommand();
 
-      case 'status':
-        return await handleStatusCommand(); // Updated to call the new handler
+      case "status":
+        return await runStatusCommand();
 
       default:
         return { success: false, message: `Unknown command: ${cmd}` };
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error(`[hardCommands] Error handling command "${command}":`, error);
     return {
       success: false,
-      message: `Command execution failed: ${error.message || error}`,
+      message: `Command execution failed: ${errorMessage(error)}`,
       data: { recoverable_failure: true },
     };
   }
@@ -95,24 +182,24 @@ export async function handleHardCommand(
  *
  * Fetches the actual system status from vectorAPI.healthCheck.
  */
-async function handleStatusCommand(): Promise<HardCommandResponse> {
+export async function runStatusCommand(): Promise<HardCommandResponse> {
   try {
     const rawData = await vectorApi.healthCheck();
-    if (rawData.status && rawData.status === 'healthy') {
+    if (rawData.status && rawData.status === "healthy") {
       return {
         success: true,
         message:
-          'Cogitatio Terminal is connected to Cogitatio Server - Systems Nominal.',
+          "Cogitatio Terminal is connected to Cogitatio Server - Systems Nominal.",
         data: rawData, // Contains whatever the backend sent
       };
     } else {
-      throw error('Unexpected API Response');
+      throw new Error("Unexpected API Response");
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error(`[handleStatusCommand] Error fetching health status:`, error);
     return {
       success: false,
-      message: `Cogitatio Virtualis Health Check Failed - ${error.message || error}`,
+      message: `Cogitatio Virtualis Health Check Failed - ${errorMessage(error)}`,
     };
   }
 }
@@ -123,12 +210,10 @@ async function handleStatusCommand(): Promise<HardCommandResponse> {
  *
  * Fetches a full document from vectorAPI.getDocument with the docID string.
  */
-async function handleDocIdCommand(
-  args: string[],
-  secret?: boolean,
-): Promise<HardCommandResponse> {
-  const docId = args[0] as string;
-
+export async function runDocIdCommand({
+  docId,
+  secret,
+}: DocIdCommandInput): Promise<HardCommandResponse> {
   if (!secret) {
     return {
       success: false,
@@ -139,7 +224,7 @@ async function handleDocIdCommand(
   if (!docId) {
     return {
       success: false,
-      message: 'Usage: /doc_id <doc_id>',
+      message: "Usage: /doc_id <doc_id>",
     };
   }
 
@@ -151,14 +236,14 @@ async function handleDocIdCommand(
       message: `Document ${docId} loaded; added to context.`,
       data: transformedData[0],
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error(
       `[handleDocIdCommand] Error fetching document with doc_id "${docId}":`,
       error,
     );
     return {
       success: false,
-      message: `Docs Command Failure - ${error.message || error}`,
+      message: `Docs Command Failure - ${errorMessage(error)}`,
     };
   }
 }
@@ -170,9 +255,10 @@ async function handleDocIdCommand(
  * We call VectorAPI.getDocumentsByType() with the specified type.
  * We do not do any summarizing or transformation. We just return raw results in `data`.
  */
-async function handleDocsCommand(args: string[], secret?: boolean): Promise<HardCommandResponse> {
-  const docTypeArg = args[0] as DocumentType;
-
+export async function runDocsCommand({
+  docType,
+  secret,
+}: DocsCommandInput): Promise<HardCommandResponse> {
   if (!secret) {
     return {
       success: false,
@@ -181,29 +267,29 @@ async function handleDocsCommand(args: string[], secret?: boolean): Promise<Hard
   }
 
   // Validate docTypeArg
-  if (!docTypeArg || !Object.values(DocumentType).includes(docTypeArg)) {
+  if (!docType || !Object.values(DocumentType).includes(docType)) {
     return {
       success: false,
-      message: 'Usage: /docs <experience|education|project|other>',
+      message: "Usage: /docs <experience|education|project|other>",
     };
   }
 
   try {
     // Retrieve documents from VectorAPI
-    const data = await vectorApi.getDocumentsByType(docTypeArg);
+    const data = await vectorApi.getDocumentsByType(docType);
     return {
       success: true,
-      message: `Fetched documents of type "${docTypeArg}"`,
+      message: `Fetched documents of type "${docType}"`,
       data, // raw data from VectorAPI
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error(
-      `[handleDocsCommand] Error fetching documents of type "${docTypeArg}":`,
+      `[handleDocsCommand] Error fetching documents of type "${docType}":`,
       error,
     );
     return {
       success: false,
-      message: `Docs Command Failure - ${error.message || error}`,
+      message: `Docs Command Failure - ${errorMessage(error)}`,
     };
   }
 }
@@ -218,10 +304,11 @@ async function handleDocsCommand(args: string[], secret?: boolean): Promise<Hard
  * - `active` lists all currently active projects by end_date
  */
 
-async function handleProjectCommand(
-  args: string[],
-): Promise<HardCommandResponse> {
-  if (!args[0] || args[0] === 'list') {
+export async function runProjectCommand({
+  subcommand = "list",
+  subtype,
+}: ProjectCommandInput): Promise<HardCommandResponse> {
+  if (!subcommand || subcommand === "list") {
     // Just get all project docs
     try {
       const rawData = await vectorApi.getDocumentsByType(DocumentType.PROJECT);
@@ -238,59 +325,58 @@ async function handleProjectCommand(
         message,
         data: transformedData,
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error(
         `[handleProjectCommand] Error fetching all projects:`,
         error,
       );
       return {
         success: false,
-        message: `Project Command Failure - ${error.message || error}`,
+        message: `Project Command Failure - ${errorMessage(error)}`,
       };
     }
   }
 
-  if (args[0] === 'type') {
-    const subtypeArg = args[1] as ProjectSubType;
+  if (subcommand === "type") {
     // Validate
-    if (!subtypeArg || !Object.values(ProjectSubType).includes(subtypeArg)) {
+    if (!subtype || !Object.values(ProjectSubType).includes(subtype)) {
       return {
         success: false,
         message:
-          'Usage: /project type <product|process|infrastructure|self_referential>',
+          "Usage: /project type <product|process|infrastructure|self_referential>",
       };
     }
     // Retrieve typed projects
     try {
       const rawData = await vectorApi.getDocumentsByType(DocumentType.PROJECT, {
-        project_subtype: subtypeArg,
+        project_subtype: subtype,
       });
       const transformedData = docUtils.transformProjectResults(rawData);
       const message = docUtils.createProjectListMessage(
         transformedData,
         rawData,
         transformedData.length > 0
-          ? `${transformedData.length} Projects (Sub-Type: "${subtypeArg}") Loaded To Context:\n(Select by number or use natural language to proceed)`
-          : `${transformedData.length} Projects (Sub-Type "${subtypeArg}") Found`,
+          ? `${transformedData.length} Projects (Sub-Type: "${subtype}") Loaded To Context:\n(Select by number or use natural language to proceed)`
+          : `${transformedData.length} Projects (Sub-Type "${subtype}") Found`,
       );
       return {
         success: true,
         message,
         data: transformedData,
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error(
-        `[handleProjectCommand] Error fetching projects with subtype "${subtypeArg}":`,
+        `[handleProjectCommand] Error fetching projects with subtype "${subtype}":`,
         error,
       );
       return {
         success: false,
-        message: `Project Subtype Command Failure - ${error.message || error}`,
+        message: `Project Subtype Command Failure - ${errorMessage(error)}`,
       };
     }
   }
 
-  if (args[0] === 'active') {
+  if (subcommand === "active") {
     try {
       const rawData = await vectorApi.getDocumentsByType(DocumentType.PROJECT);
 
@@ -322,14 +408,14 @@ async function handleProjectCommand(
         message,
         data: transformedData,
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error(
         `[handleProjectCommand] Error fetching active projects:`,
         error,
       );
       return {
         success: false,
-        message: `Project Active Command Failure - ${error.message || error}`,
+        message: `Project Active Command Failure - ${errorMessage(error)}`,
       };
     }
   }
@@ -337,7 +423,7 @@ async function handleProjectCommand(
   // If none of the above:
   return {
     success: false,
-    message: 'Usage: /project <list|type|active>',
+    message: "Usage: /project <list|type|active>",
   };
 }
 
@@ -348,11 +434,9 @@ async function handleProjectCommand(
  * - `/exp years`  => Return the rough total years of experience
  * - `/exp skills` => Return a deduplicated list of all skills
  */
-async function handleExperienceCommand(
-  args: string[],
-): Promise<HardCommandResponse> {
-  const subCmd = (args[0] || 'list').toLowerCase();
-
+export async function runExperienceCommand({
+  subcommand = "list",
+}: ExperienceCommandInput): Promise<HardCommandResponse> {
   try {
     const rawData = await vectorApi.getDocumentsByType(DocumentType.EXPERIENCE);
     if (!rawData || rawData.length === 0) {
@@ -366,8 +450,8 @@ async function handleExperienceCommand(
     // Transform the data once (for "list" and for potential subcommands)
     const transformedData = docUtils.transformExperienceResults(rawData);
 
-    switch (subCmd) {
-      case 'list': {
+    switch (subcommand) {
+      case "list": {
         const message = docUtils.createExperienceListMessage(
           transformedData,
           rawData,
@@ -380,7 +464,7 @@ async function handleExperienceCommand(
         };
       }
 
-      case 'years': {
+      case "years": {
         // 1) Collect each unique ExperienceDocument by doc_id.
         const docMap = new Map<string, ExperienceDocument>();
         for (const item of rawData) {
@@ -401,7 +485,7 @@ async function handleExperienceCommand(
         };
       }
 
-      case 'skills': {
+      case "skills": {
         // Use docUtils.documentAnalysis.extractSkills on the raw doc array
         const expDocs = rawData
           .map((item) => item.metadata)
@@ -427,7 +511,7 @@ async function handleExperienceCommand(
           (skill, idx) => `${idx + 1}. ${skill}`,
         );
         const message = `Skills Extracted (${uniqueSkills.length} total):\n${listItems.join(
-          '\n',
+          "\n",
         )}`;
 
         return {
@@ -443,11 +527,11 @@ async function handleExperienceCommand(
           message: `Usage: /exp <list|years|skills>`,
         };
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error(`[handleExperienceCommand] Error:`, error);
     return {
       success: false,
-      message: `Experience Command Failure - ${error.message || error}`,
+      message: `Experience Command Failure - ${errorMessage(error)}`,
     };
   }
 }
@@ -458,31 +542,14 @@ async function handleExperienceCommand(
  * @param args - Array where the first element can be embedding_type and the rest form the query.
  * @returns A `HardCommandResponse` with the search results.
  */
-async function handleSearchCommand(
-  args: string[],
-): Promise<HardCommandResponse> {
-  // 1) Parse arguments
-  let embedding_type: 'none' | 'query' | 'document' = 'none';
-  let query = '';
-
-  if (args.length === 0) {
-    return {
-      success: false,
-      message: 'Usage: /search [none|query|document] <query>',
-    };
-  }
-
-  if (['none', 'query', 'document'].includes(args[0].toLowerCase())) {
-    embedding_type = args[0].toLowerCase() as 'none' | 'query' | 'document';
-    query = args.slice(1).join(' ').trim();
-  } else {
-    query = args.join(' ').trim();
-  }
-
+export async function runSearchCommand({
+  embeddingType,
+  query,
+}: SearchCommandInput): Promise<HardCommandResponse> {
   if (!query) {
     return {
       success: false,
-      message: 'Usage: /search [none|query|document] <query>',
+      message: "Usage: /search [none|query|document] <query>",
     };
   }
 
@@ -490,7 +557,7 @@ async function handleSearchCommand(
     // 2) Perform the vector search
     const searchResults = await vectorApi.search({
       query,
-      embedding_type,
+      embedding_type: embeddingType,
       k: 5, // or however many results you want
     });
 
@@ -505,11 +572,11 @@ async function handleSearchCommand(
       // or you could store something more structured, e.g. group the results:
       // data: searchUtils.groupByDocument(searchResults),
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error(`[handleSearchCommand] Error performing search:`, error);
     return {
       success: false,
-      message: `Search Command Failure - ${error.message || error}`,
+      message: `Search Command Failure - ${errorMessage(error)}`,
     };
   }
 }
@@ -521,30 +588,25 @@ async function handleSearchCommand(
  * We pass the "other_subtype" param to VectorAPI.getDocumentsByType.
  * We do not do any special filtering or transformations.
  */
-async function handleOtherCommand(
-  args: string[],
-): Promise<HardCommandResponse> {
-  const subtypeArg = args[0] as OtherSubType;
-
-  if (
-    !subtypeArg ||
-    !Object.values(OtherSubType).includes(subtypeArg)
-  ) {
+export async function runOtherCommand({
+  subtype,
+}: OtherCommandInput): Promise<HardCommandResponse> {
+  if (!subtype || !Object.values(OtherSubType).includes(subtype)) {
     return {
       success: false,
       message:
-        'usage: /other <cover-letter|publication-speaking|recommendation|thought-leadership>',
+        "usage: /other <cover-letter|publication-speaking|recommendation|thought-leadership>",
     };
   }
 
   try {
     const rawData = await vectorApi.getDocumentsByType(DocumentType.OTHER, {
-      other_subtype: subtypeArg,
+      other_subtype: subtype,
     });
 
     const transformedData = docUtils.transformOtherResults(rawData);
     // special-case cover letters
-    if (subtypeArg === OtherSubType.COVER_LETTER) {
+    if (subtype === OtherSubType.COVER_LETTER) {
       return {
         success: true,
         message: `Loading ${rawData.length} Cover Letter(s) to context... Please provide a natural language job description as your next input:`,
@@ -557,8 +619,8 @@ async function handleOtherCommand(
       transformedData,
       rawData,
       transformedData.length > 0
-        ? `${transformedData.length} '${subtypeArg}' documents loaded to context:\n(select by number or proceed via natural language)`
-        : `${transformedData.length} documents (subtype='${subtypeArg}') found`,
+        ? `${transformedData.length} '${subtype}' documents loaded to context:\n(select by number or proceed via natural language)`
+        : `${transformedData.length} documents (subtype='${subtype}') found`,
     );
 
     return {
@@ -566,14 +628,14 @@ async function handleOtherCommand(
       message,
       data: transformedData,
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error(
-      `[handleOtherCommand] error fetching docs subtype "${subtypeArg}":`,
+      `[handleOtherCommand] error fetching docs subtype "${subtype}":`,
       error,
     );
     return {
       success: false,
-      message: `other docs command failure - ${error.message || error}`,
+      message: `other docs command failure - ${errorMessage(error)}`,
     };
   }
 }
@@ -582,9 +644,7 @@ async function handleOtherCommand(
  * `/help`
  * Shows available commands
  */
-function handleHelpCommand(): HardCommandResponse {
-  // Provide usage instructions
-  console.log("calling handleHelpCommand")
+function runHelpCommand(): HardCommandResponse {
   const helpMessage = `Power User Commands:
   /search <type> <text>  - Vector search
     ↳ <type>: none, query, document
@@ -626,3 +686,13 @@ function handleHelpCommand(): HardCommandResponse {
     message: helpMessage,
   };
 }
+
+export const hardCommandOperations: HardCommandOperations = {
+  runDocIdCommand,
+  runDocsCommand,
+  runProjectCommand,
+  runExperienceCommand,
+  runSearchCommand,
+  runOtherCommand,
+  runStatusCommand,
+};
