@@ -57,7 +57,10 @@ const projectDocumentSchema = baseDocumentSchema.extend({
     ImpactScope.TEAM,
     ImpactScope.DEPARTMENT,
     ImpactScope.COMPANY,
+    ImpactScope.CLIENT,
     ImpactScope.INDUSTRY,
+    ImpactScope.COMMUNITY,
+    ImpactScope.TBD,
   ]),
   tech_stack: z.array(z.string()).optional().nullable(),
   github: z.string().optional().nullable(),
@@ -65,6 +68,7 @@ const projectDocumentSchema = baseDocumentSchema.extend({
     .enum([
       DeploymentStatus.PRODUCTION,
       DeploymentStatus.INTERNAL,
+      DeploymentStatus.OPEN_SOURCE,
       DeploymentStatus.ARCHIVED,
     ])
     .optional()

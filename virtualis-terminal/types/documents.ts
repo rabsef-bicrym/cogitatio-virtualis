@@ -27,6 +27,7 @@ export enum ProjectSubType {
 export enum DeploymentStatus {
   PRODUCTION = "Production",
   INTERNAL = "Internal",
+  OPEN_SOURCE = "Open Source",
   ARCHIVED = "Archived",
 }
 
@@ -34,7 +35,10 @@ export enum ImpactScope {
   TEAM = "Team",
   DEPARTMENT = "Department",
   COMPANY = "Company",
+  CLIENT = "Client",
   INDUSTRY = "Industry",
+  COMMUNITY = "Community",
+  TBD = "TBD",
 }
 
 export enum EvolutionStage {

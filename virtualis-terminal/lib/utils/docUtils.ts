@@ -697,17 +697,20 @@ export const documentSorters = {
 
   /**
    * Sorts two ProjectDocument objects by their impact_scope, giving
-   * Industry > Company > Department > Team priority.
+   * Industry > Community > Company > Client > Department > Team > TBD priority.
    * @param a - First ProjectDocument.
    * @param b - Second ProjectDocument.
    * @returns A sort comparator value, suitable for array sorting.
    */
   byImpactScope: (a: ProjectDocument, b: ProjectDocument): number => {
     const scopeWeight: Record<string, number> = {
-      Industry: 4,
-      Company: 3,
-      Department: 2,
-      Team: 1,
+      Industry: 7,
+      Community: 6,
+      Company: 5,
+      Client: 4,
+      Department: 3,
+      Team: 2,
+      TBD: 1,
     };
     return scopeWeight[b.impact_scope] - scopeWeight[a.impact_scope];
   },
