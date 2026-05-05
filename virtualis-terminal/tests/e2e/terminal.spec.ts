@@ -42,6 +42,22 @@ async function mockChatStream(page: Page) {
   });
 }
 
+async function mockChatFailure(page: Page) {
+  await page.route("**/api/chat/threads", async (route) => {
+    const requestBody = route.request().postDataJSON();
+    expect(requestBody).toEqual({ command: "hello" });
+
+    await route.fulfill({
+      status: 500,
+      contentType: "application/json",
+      body: JSON.stringify({
+        success: false,
+        message: "Session error",
+      }),
+    });
+  });
+}
+
 async function waitForTerminalReady(page: Page) {
   await expect(page.getByText(/Ready for queries/)).toBeVisible({
     timeout: 45_000,
@@ -79,4 +95,30 @@ test("submits a terminal command and renders the streamed response", async ({
       "Cogitatio Terminal is connected to Cogitatio Server - Systems Nominal.",
     ),
   ).toBeVisible({ timeout: 10_000 });
+});
+
+test("renders chat API failures without crashing the terminal", async ({
+  page,
+}) => {
+  await mockBootSequence(page);
+  await mockChatFailure(page);
+
+  const pageErrors: Error[] = [];
+  page.on("pageerror", (error) => pageErrors.push(error));
+
+  await page.goto("/");
+
+  const commandInput = page.locator("input.crt-command-line__input");
+  await waitForTerminalReady(page);
+  await commandInput.focus();
+  await page.keyboard.type("hello");
+  await page.keyboard.press("Enter");
+
+  await expect(
+    page.getByText("Error executing command: Session error"),
+  ).toBeVisible({
+    timeout: 10_000,
+  });
+  await expect(page.getByText("SYSTEM ERROR")).toHaveCount(0);
+  expect(pageErrors).toEqual([]);
 });

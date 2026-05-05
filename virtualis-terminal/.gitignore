@@ -40,6 +40,8 @@ yarn-error.log*
 *.tsbuildinfo
 
 # prisma data
+prisma/*.db
+prisma/*.db-journal
 # Ignore the sessions folder and its contents
 prisma/sessions/
 # Ignore all migration files but keep the folder structure and migration_lock.toml

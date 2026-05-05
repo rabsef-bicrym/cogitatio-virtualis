@@ -16,6 +16,17 @@ interface ChatSSEEvent {
   } & Record<string, unknown>;
 }
 
+async function readErrorMessage(response: Response): Promise<string> {
+  try {
+    const errorData = (await response.json()) as { message?: unknown };
+    return typeof errorData.message === "string"
+      ? errorData.message
+      : "Unknown error occurred";
+  } catch {
+    return response.statusText || "Unknown error occurred";
+  }
+}
+
 export class ChatController extends BaseController {
   protected terminal: TerminalHandle | null = null;
   state: ChatState = {
@@ -196,8 +207,11 @@ export class ChatController extends BaseController {
       clearTimeout(timeout);
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Unknown error occurred");
+        const errorMessage = await readErrorMessage(response);
+        await this.print(
+          sendMessage(`Error executing command: ${errorMessage}`, "system"),
+        );
+        return;
       }
 
       // Handle SSE streaming
