@@ -23,6 +23,7 @@ export const TerminalFrame: React.FC<TerminalFrameProps> = ({
   config,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const contentAreaRef = useRef<HTMLDivElement>(null);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
   const [isLandscape, setIsLandscape] = useState(false);
 
@@ -103,6 +104,38 @@ export const TerminalFrame: React.FC<TerminalFrameProps> = ({
     };
   }, [config.dimensions]);
 
+  useEffect(() => {
+    const contentArea = contentAreaRef.current;
+    if (!contentArea) return;
+
+    const findScrollContainer = () => {
+      const elements = Array.from(
+        contentArea.querySelectorAll<HTMLElement>("*"),
+      );
+      return elements.find((element) => {
+        const overflowY = window.getComputedStyle(element).overflowY;
+        return overflowY === "auto" || overflowY === "scroll";
+      });
+    };
+
+    const scrollCommandLineIntoView = () => {
+      window.requestAnimationFrame(() => {
+        const scrollContainer = findScrollContainer();
+        if (!scrollContainer) return;
+
+        scrollContainer.scrollTop = scrollContainer.scrollHeight;
+      });
+    };
+
+    contentArea.addEventListener("input", scrollCommandLineIntoView);
+    contentArea.addEventListener("keydown", scrollCommandLineIntoView);
+
+    return () => {
+      contentArea.removeEventListener("input", scrollCommandLineIntoView);
+      contentArea.removeEventListener("keydown", scrollCommandLineIntoView);
+    };
+  }, []);
+
   return (
     <div className="terminal-frame-container" ref={containerRef}>
       <div
@@ -114,7 +147,9 @@ export const TerminalFrame: React.FC<TerminalFrameProps> = ({
           height: dimensions.height ? `${dimensions.height}px` : "100%",
         }}
       >
-        <div className="content-area">{children}</div>
+        <div className="content-area" ref={contentAreaRef}>
+          {children}
+        </div>
 
         <div className="bezel-buttons">
           <button
@@ -179,6 +214,30 @@ export const TerminalFrame: React.FC<TerminalFrameProps> = ({
           height: 100%;
           overflow: hidden;
           border-radius: 8px;
+        }
+
+        :global(.terminal-frame .crt-command-line) {
+          display: flex;
+          align-items: flex-start;
+          width: 100%;
+          gap: 0.5ch;
+        }
+
+        :global(.terminal-frame .crt-command-line__prompt) {
+          flex: 0 0 auto;
+        }
+
+        :global(.terminal-frame .crt-command-line__input-wrapper) {
+          display: block;
+          flex: 1 1 auto;
+          min-width: 0;
+        }
+
+        :global(.terminal-frame .crt-command-line__input-string) {
+          display: block;
+          overflow-wrap: anywhere;
+          white-space: normal;
+          word-break: break-word;
         }
 
         .bezel-buttons {

@@ -97,6 +97,79 @@ test("submits a terminal command and renders the streamed response", async ({
   ).toBeVisible({ timeout: 10_000 });
 });
 
+test("preserves typed command text while editing", async ({ page }) => {
+  await mockBootSequence(page);
+  await page.goto("/");
+  await waitForTerminalReady(page);
+
+  const commandInput = page.locator("input.crt-command-line__input");
+
+  await commandInput.focus();
+  await page.keyboard.type("Hi Cogitatio, how are you");
+
+  await expect(commandInput).toHaveValue("Hi Cogitatio, how are you");
+  await expect(page.locator(".crt-command-line__input-string")).toContainText(
+    "Hi Cogitatio, how are you",
+  );
+});
+
+test("keeps wrapped command input aligned and visible", async ({ page }) => {
+  await mockBootSequence(page);
+  await page.setViewportSize({ width: 900, height: 620 });
+  await page.goto("/");
+  await waitForTerminalReady(page);
+
+  const commandInput = page.locator("input.crt-command-line__input");
+  const longCommand = `/search query ${"legal technology innovation ".repeat(24)}`;
+
+  await commandInput.focus();
+  await page.keyboard.type(longCommand);
+
+  const metrics = await page.evaluate(() => {
+    const prompt = document.querySelector(".crt-command-line__prompt");
+    const inputWrapper = document.querySelector(
+      ".crt-command-line__input-wrapper",
+    );
+    const inputString = document.querySelector(
+      ".crt-command-line__input-string",
+    );
+    const scrollContainer = Array.from(
+      document.querySelectorAll<HTMLElement>(".content-area *"),
+    ).find((element) => {
+      const overflowY = window.getComputedStyle(element).overflowY;
+      return overflowY === "auto" || overflowY === "scroll";
+    });
+
+    if (!prompt || !inputWrapper || !inputString || !scrollContainer) {
+      throw new Error("Terminal command line was not rendered");
+    }
+
+    const promptBox = prompt.getBoundingClientRect();
+    const inputWrapperBox = inputWrapper.getBoundingClientRect();
+    const inputStringBox = inputString.getBoundingClientRect();
+    const scrollBox = scrollContainer.getBoundingClientRect();
+
+    return {
+      promptTop: promptBox.top,
+      inputTop: inputWrapperBox.top,
+      inputHeight: inputStringBox.height,
+      inputBottom: inputStringBox.bottom,
+      scrollBottom: scrollBox.bottom,
+      scrollTop: scrollContainer.scrollTop,
+      scrollHeight: scrollContainer.scrollHeight,
+      clientHeight: scrollContainer.clientHeight,
+    };
+  });
+
+  expect(Math.abs(metrics.promptTop - metrics.inputTop)).toBeLessThanOrEqual(2);
+  expect(metrics.inputHeight).toBeGreaterThan(24);
+  expect(metrics.inputBottom).toBeLessThanOrEqual(metrics.scrollBottom + 1);
+  expect(metrics.scrollTop).toBeGreaterThan(0);
+  expect(metrics.scrollTop + metrics.clientHeight).toBeGreaterThanOrEqual(
+    metrics.scrollHeight - 1,
+  );
+});
+
 test("renders chat API failures without crashing the terminal", async ({
   page,
 }) => {
