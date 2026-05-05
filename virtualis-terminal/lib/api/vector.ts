@@ -5,10 +5,13 @@ import type {
   SearchRequest,
   SearchResult,
   DocumentResponse,
-} from '@/types/documents';
-//import { searchUtils } from '@/pages/utils/docUtils';
+} from "@/types/documents";
+import {
+  parseDocumentResponses,
+  parseSearchResults,
+} from "@/lib/api/document-codec";
 
-const API_BASE = process.env.VECTOR_API_URL || 'http://127.0.0.1:8000';
+const API_BASE = process.env.VECTOR_API_URL || "http://127.0.0.1:8000";
 
 class APIError extends Error {
   constructor(
@@ -17,7 +20,7 @@ class APIError extends Error {
     public code?: string,
   ) {
     super(message);
-    this.name = 'APIError';
+    this.name = "APIError";
   }
 }
 
@@ -28,15 +31,15 @@ export class VectorAPI {
   ): Promise<T> {
     const response = await fetch(`${API_BASE}${endpoint}`, {
       ...options,
-      headers: { 'Content-Type': 'application/json', ...options.headers },
+      headers: { "Content-Type": "application/json", ...options.headers },
     });
 
     if (!response.ok) {
       const error = await response
         .json()
-        .catch(() => ({ detail: 'Unknown error' }));
+        .catch(() => ({ detail: "Unknown error" }));
       throw new APIError(
-        error.detail || 'API request failed',
+        error.detail || "API request failed",
         response.status,
         error.code,
       );
@@ -47,7 +50,7 @@ export class VectorAPI {
   }
 
   async healthCheck(): Promise<{ status: string }> {
-    return this.fetch('/health');
+    return this.fetch("/health");
   }
 
   async getStats(): Promise<{
@@ -57,25 +60,22 @@ export class VectorAPI {
     dimension: number;
     index_size_mb: number;
   }> {
-    return this.fetch('/stats');
+    return this.fetch("/stats");
   }
 
   async getRandomTexts(count: number = 5): Promise<{ texts: string[] }> {
     if (count < 1 || count > 20)
-      throw new Error('Count must be between 1 and 20');
+      throw new Error("Count must be between 1 and 20");
 
-    const response = await this.fetch<{ texts: string[] }>(
+    return this.fetch<{ texts: string[] }>(
       `/documents/random?${new URLSearchParams({ count: count.toString() })}`,
     );
-
-    // console.log('Got random texts:', response);
-
-    return response;
   }
 
   async getDocument(docId: string): Promise<DocumentResponse[]> {
-    // Now we return doc_id, content, and metadata as DocumentResponse
-    return this.fetch<DocumentResponse[]>(`/documents/${docId}`);
+    return parseDocumentResponses(
+      await this.fetch<unknown>(`/documents/${docId}`),
+    );
   }
 
   async getDocumentsByType(
@@ -87,17 +87,17 @@ export class VectorAPI {
   ): Promise<DocumentResponse[]> {
     const params = new URLSearchParams();
     if (options?.project_subtype)
-      params.append('project_subtype', options.project_subtype);
+      params.append("project_subtype", options.project_subtype);
     if (options?.other_subtype)
-      params.append('other_subtype', options.other_subtype);
-    const queryString = params.toString() ? `?${params}` : '';
-    return this.fetch<DocumentResponse[]>(
-      `/documents/type/${docType}${queryString}`,
+      params.append("other_subtype", options.other_subtype);
+    const queryString = params.toString() ? `?${params}` : "";
+    return parseDocumentResponses(
+      await this.fetch<unknown>(`/documents/type/${docType}${queryString}`),
     );
   }
 
   async search(request: SearchRequest): Promise<SearchResult[]> {
-    if (!['none', 'query', 'document'].includes(request.embedding_type)) {
+    if (!["none", "query", "document"].includes(request.embedding_type)) {
       throw new Error(`Invalid embedding_type: ${request.embedding_type}`);
     }
 
@@ -109,19 +109,17 @@ export class VectorAPI {
     });
 
     try {
-      const result = await this.fetch<SearchResult[]>('/search', {
-        method: 'POST',
-        body,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      // console.log('Fetch result:', result);
-
-      return result;
+      return parseSearchResults(
+        await this.fetch<unknown>("/search", {
+          method: "POST",
+          body,
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }),
+      );
     } catch (error) {
-      console.error('Error during fetch:', error);
+      console.error("Error during fetch:", error);
       throw error;
     }
   }

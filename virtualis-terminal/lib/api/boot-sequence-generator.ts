@@ -1,7 +1,8 @@
 // cogitatio-virtualis/virtualis-terminal/lib/api/boot-sequence-generator.ts
 
-import Anthropic from '@anthropic-ai/sdk';
-import { z } from 'zod';
+import Anthropic from "@anthropic-ai/sdk";
+import { z } from "zod";
+import { anthropicConfig } from "@/lib/api/anthropic-config";
 
 // Zod schema for boot sequence messages
 const bootSequenceSchema = z.object({
@@ -21,7 +22,7 @@ interface Tool {
   name: string;
   description: string;
   input_schema: {
-    type: 'object';
+    type: "object";
     properties: {
       [key: string]: {
         type: string;
@@ -36,9 +37,9 @@ interface Tool {
 }
 
 const defaultConfig: Required<BootGeneratorConfig> = {
-  maxTokens: 1024,
-  temperature: 0.7,
-  model: 'claude-3-5-haiku-latest',
+  maxTokens: anthropicConfig.boot.maxTokens,
+  temperature: anthropicConfig.boot.temperature,
+  model: anthropicConfig.boot.model,
 };
 
 /**
@@ -65,27 +66,27 @@ export class BootSequenceGenerator {
   ): Promise<string[]> {
     const tools: Tool[] = [
       {
-        name: 'create_boot_sequence',
-        description: 'Generate boot sequence messages',
+        name: "create_boot_sequence",
+        description: "Generate boot sequence messages",
         input_schema: {
-          type: 'object',
+          type: "object",
           properties: {
             messages: {
-              type: 'array',
-              items: { type: 'string' },
+              type: "array",
+              items: { type: "string" },
               minItems: 5,
               maxItems: 5,
-              description: 'Array of 5 boot sequence messages',
+              description: "Array of 5 boot sequence messages",
             },
           },
-          required: ['messages'],
+          required: ["messages"],
         },
       },
     ];
 
     try {
       const contextText = `Context documents for reference:\n${contextTexts.join(
-        '\n\n',
+        "\n\n",
       )}`;
 
       const response = await this.client.messages.create({
@@ -93,21 +94,21 @@ export class BootSequenceGenerator {
         max_tokens: this.config.maxTokens,
         temperature: this.config.temperature,
         system: systemPrompt,
-        messages: [{ role: 'user', content: contextText }],
+        messages: [{ role: "user", content: contextText }],
         tools,
-        tool_choice: { type: 'tool', name: 'create_boot_sequence' },
+        tool_choice: { type: "tool", name: "create_boot_sequence" },
       });
 
       // Find tool use block in response
       const toolUse = response.content?.find(
         (content): content is Anthropic.ToolUseBlock =>
-          content.type === 'tool_use' &&
-          content.name === 'create_boot_sequence',
+          content.type === "tool_use" &&
+          content.name === "create_boot_sequence",
       );
 
       if (!toolUse) {
-        console.error('No tool use block found in response:', response.content);
-        throw new Error('No boot sequence generated');
+        console.error("No tool use block found in response:", response.content);
+        throw new Error("No boot sequence generated");
       }
 
       interface ToolUseInput {
@@ -120,18 +121,18 @@ export class BootSequenceGenerator {
       // Now, TypeScript knows the structure for sure
       const messagesArray = Array.isArray(toolInput.messages)
         ? toolInput.messages
-        : toolInput.messages.split('\n').map((msg) => msg.trim());
+        : toolInput.messages.split("\n").map((msg) => msg.trim());
 
       // Parse and validate the messages array
       const parsed = bootSequenceSchema.safeParse({ messages: messagesArray });
 
       if (!parsed.success) {
-        throw new Error('Invalid boot sequence format');
+        throw new Error("Invalid boot sequence format");
       }
 
       return parsed.data.messages;
     } catch (error) {
-      console.error('Boot sequence generation failed:', error);
+      console.error("Boot sequence generation failed:", error);
       throw error;
     }
   }

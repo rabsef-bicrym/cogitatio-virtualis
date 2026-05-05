@@ -90,21 +90,24 @@ The project embodies several core principles:
 ### Prerequisites
 
 ```bash
-Node.js >= 16
-Python >= 3.8
+Node.js >= 20
+Python >= 3.12
 ```
 
 ### Start the Backend
 
 ```bash
-pip install -e ".[dev]"
-python3 -m cogitatio-server.scripts.start_server
+cd cogitatio-server
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install -e ".[test]"
+cogitatio-server
 ```
 
 ### Start the Frontend
 
 ```bash
-cd cogitation-terminal
+cd virtualis-terminal
 npm install
 npm run dev
 ```
@@ -125,6 +128,10 @@ For detailed setup and development guidelines, see:
 
 - [COGITATIO README](./cogitatio-server/README.md)
 - [VIRTUALIS README](./virtualis-terminal/README.md)
+- [Development Process](./CONTRIBUTING.md)
+
+GitHub Actions runs separate frontend and backend gates on pushes and pull
+requests. The workflow validates the app without deploying it.
 
 ## Future Directions
 
@@ -145,4 +152,3 @@ For detailed setup and development guidelines, see:
 ---
 
 ***"Silicon dreams flow through corridors of logic, wisdom awakens."*** -COGITATIO VIRTUALIS Boot Sequence Haiku
-

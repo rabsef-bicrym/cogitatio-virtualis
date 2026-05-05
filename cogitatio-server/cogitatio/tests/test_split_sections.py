@@ -1,14 +1,15 @@
 # cogitatio/tests/test_split_sections.py
 
 from cogitatio.document_processor.processor import DocumentProcessor
+from cogitatio.document_processor import vector_manager as vector_manager_module
 from cogitatio.document_processor.vector_manager import VectorManager
 from cogitatio.utils.logging import ComponentLogger
 
-def test_split_sections():
+def test_split_sections(tmp_path, monkeypatch):
     # Setup logger
     logger = ComponentLogger("test_logger")
-    
-    # Mock VectorManager (adjust according to your initialization requirements)
+
+    monkeypatch.setattr(vector_manager_module, "DATA_DIR", tmp_path)
     vector_manager = VectorManager()
 
     # Initialize DocumentProcessor

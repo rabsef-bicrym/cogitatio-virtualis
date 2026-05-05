@@ -51,6 +51,9 @@ build/
 
 # Next.js build output
 .next/
+virtualis-terminal/lib/generated/prisma/
+virtualis-terminal/playwright-report/
+virtualis-terminal/test-results/
 
 # Nuxt.js build output
 .nuxt/
@@ -176,10 +179,14 @@ ipython_config.py
 
 # Ignore everything in /data
 /cogitatio-server/data/*
-!/cogitatio-server/data/.gitignore  # Allow the .gitignore file itself
+!/cogitatio-server/data/.gitignore
 
 # Ignore everything in /old_fakes
 /cogitatio-server/documents/templates/old_fakes/
 
 # Ignore firstconversation.md
 firstconversation.md
+
+# Admin folder - local deployment configs, secrets, etc.
+/admin/
+.worktrees/

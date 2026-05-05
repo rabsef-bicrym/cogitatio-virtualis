@@ -1,8 +1,8 @@
 // cogitatio-virtualis/virtualis-terminal/types/chat.ts
 
-export type MessageRole = 'user' | 'assistant' | 'system';
-export type ComponentType = 'button' | 'link' | 'text';
-export type StyleType = 'normal' | 'emphasis' | 'system';
+export type MessageRole = "user" | "assistant" | "system";
+export type ComponentType = "button" | "link" | "text";
+export type StyleType = "normal" | "emphasis" | "system";
 
 export interface ChatComponent {
   type: ComponentType;

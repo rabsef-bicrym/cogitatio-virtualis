@@ -4,50 +4,54 @@
  * Core document type classifications
  */
 export enum DocumentType {
-  EXPERIENCE = 'experience',
-  EDUCATION = 'education',
-  PROJECT = 'project',
-  OTHER = 'other',
+  EXPERIENCE = "experience",
+  EDUCATION = "education",
+  PROJECT = "project",
+  OTHER = "other",
 }
 
 export enum OtherSubType {
-  COVER_LETTER = 'cover-letter',
-  PUBLICATION_SPEAKING = 'publication-speaking',
-  RECOMMENDATION = 'recommendation',
-  THOUGHT_LEADERSHIP = 'thought-leadership',
+  COVER_LETTER = "cover-letter",
+  PUBLICATION_SPEAKING = "publication-speaking",
+  RECOMMENDATION = "recommendation",
+  THOUGHT_LEADERSHIP = "thought-leadership",
 }
 
 export enum ProjectSubType {
-  PRODUCT = 'product',
-  PROCESS = 'process',
-  INFRASTRUCTURE = 'infrastructure',
-  SELF_REFERENTIAL = 'self_referential',
+  PRODUCT = "product",
+  PROCESS = "process",
+  INFRASTRUCTURE = "infrastructure",
+  SELF_REFERENTIAL = "self_referential",
 }
 
 export enum DeploymentStatus {
-  PRODUCTION = 'Production',
-  INTERNAL = 'Internal',
-  ARCHIVED = 'Archived',
+  PRODUCTION = "Production",
+  INTERNAL = "Internal",
+  OPEN_SOURCE = "Open Source",
+  ARCHIVED = "Archived",
 }
 
 export enum ImpactScope {
-  TEAM = 'Team',
-  DEPARTMENT = 'Department',
-  COMPANY = 'Company',
-  INDUSTRY = 'Industry',
+  TEAM = "Team",
+  DEPARTMENT = "Department",
+  COMPANY = "Company",
+  CLIENT = "Client",
+  INDUSTRY = "Industry",
+  COMMUNITY = "Community",
+  TBD = "TBD",
 }
 
 export enum EvolutionStage {
-  ACTIVE = 'Active',
-  STABLE = 'Stable',
-  ARCHIVE = 'Archive',
+  ACTIVE = "Active",
+  STABLE = "Stable",
+  ARCHIVE = "Archive",
 }
 
 export enum SpeakingFormat {
-  PANEL = 'Panel',
-  PRESENTATION = 'Presentation',
-  ARTICLE = 'Article',
-  WORKSHOP = 'Workshop',
+  PANEL = "Panel",
+  PRESENTATION = "Presentation",
+  ARTICLE = "Article",
+  WORKSHOP = "Workshop",
 }
 
 /**
@@ -138,7 +142,7 @@ export interface Verification {
 
 export interface CoverLetterDocument extends BaseDocument {
   type: DocumentType.OTHER;
-  subtype: OtherSubType.COVER_LETTER;
+  sub_type: OtherSubType.COVER_LETTER;
   target: string;
   role: string;
   desired_characteristics: string[];
@@ -148,7 +152,7 @@ export interface CoverLetterDocument extends BaseDocument {
 
 export interface PublicationSpeakingDocument extends BaseDocument {
   type: DocumentType.OTHER;
-  subtype: OtherSubType.PUBLICATION_SPEAKING;
+  sub_type: OtherSubType.PUBLICATION_SPEAKING;
   date: string;
   venue: string;
   format: SpeakingFormat;
@@ -160,7 +164,7 @@ export interface PublicationSpeakingDocument extends BaseDocument {
 
 export interface RecommendationDocument extends BaseDocument {
   type: DocumentType.OTHER;
-  subtype: OtherSubType.RECOMMENDATION;
+  sub_type: OtherSubType.RECOMMENDATION;
   author: Author;
   period: Period;
   context: Array<string | { [key: string]: string | string[] }>;
@@ -171,7 +175,7 @@ export interface RecommendationDocument extends BaseDocument {
 
 export interface ThoughtLeadershipDocument extends BaseDocument {
   type: DocumentType.OTHER;
-  subtype: OtherSubType.THOUGHT_LEADERSHIP;
+  sub_type: OtherSubType.THOUGHT_LEADERSHIP;
   domain: string;
   key_principles: string[];
   applications: string[];
@@ -231,7 +235,7 @@ export interface SearchResult {
  */
 export interface SearchRequest {
   query: string;
-  embedding_type: 'none' | 'query' | 'document';
+  embedding_type: "none" | "query" | "document";
   k?: number; // Number of results to return (optional, defaults handled by backend)
   filter_types?: DocumentType[]; // Optional document type filters
 }

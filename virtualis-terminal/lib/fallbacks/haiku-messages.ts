@@ -6,8 +6,8 @@
  * AI-human collaboration and professional growth.
  */
 export const FALLBACK_HAIKUS = [
-  'Bridge minds together\nClaude guides through complexity\nWisdom flows both ways',
-  'Code meets empathy\nTranslating thought to action\nHumans lead the way',
+  "Bridge minds together\nClaude guides through complexity\nWisdom flows both ways",
+  "Code meets empathy\nTranslating thought to action\nHumans lead the way",
 ] as const;
 
 /**

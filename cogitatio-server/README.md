@@ -21,45 +21,51 @@ Backend server component for Cogitatio Virtualis, providing vector search and do
   - Search implementation
   - Response optimization
 
-- **(✗_✗) Testing**
-  - Manual Testing Complete
-  - TODO: Automated testing suite
+- **(✓_✓) Testing**
+  - Automated vector-store consistency tests
+  - Package build verification
 
 ## Quick Start
 
-### Prerequisites with Conda
-1. Install `miniconda` (https://docs.anaconda.com/miniconda/install/#quick-command-line-install)
-2. Create a conda environment using the included `conda_env.yml` file
-  - We suggest you call it `cv_env`
-  - If you do not, you will need to change the `cogitatio.service` file to reflect your correct environment's name
-3. Navigate to the project's root directory (`cogitatio-server`)
+### Prerequisites
+1. Install Python 3.12.
+2. Navigate to the project's root directory (`cogitatio-server`).
 
 ### Installation
 ```bash
-# Install package in editable mode with development dependencies 
-pip install -e .
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install -e ".[test]"
+python -m pip check
 ```
 
 ### Running the Server
 
 Start both API server and document watcher:
 ```bash
-python -m cogitatio-server.scripts.start_server
+cogitatio-server
 ```
 
 Start API server only:
 ```bash
-python -m cogitatio-server.scripts.start_server --api-only
+cogitatio-server --api-only
 ```
 
 Start document processor watcher only:
 ```bash
-python -m cogitatio-server.scripts.start_server --processor-only --watch-only
+cogitatio-server --processor-only --watch-only
 ```
 
 Trigger a full reprocessing of all documents:
 ```bash
-python -m cogitatio-server.scripts.start_server --reprocess-all
+cogitatio-server --reprocess-all
+```
+
+### Verification
+```bash
+python -m pytest cogitatio/tests -q
+python -m compileall -q cogitatio scripts
+python -m build
 ```
 
 ### Environment Configuration

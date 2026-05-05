@@ -1,18 +1,25 @@
 // cogitatio-virtualis/virtualis-terminal/components/Terminal/handlers/errorHandler.ts
 
-import { textWord, buttonWord, textLine } from 'crt-terminal';
-import type { Lines } from 'crt-terminal';
+import { textWord, buttonWord, textLine } from "crt-terminal";
+import type { Lines } from "crt-terminal";
+import type { Dispatch, SetStateAction } from "react";
+import type { Controller } from "@/components/Terminal/controllers/types";
+import type {
+  OperationalMode,
+  TerminalHandle,
+  TerminalState,
+} from "@/components/Terminal/types/terminal";
 // import { ASCII_ERROR } from '../config/ascii.config';
 
 const createEmptyLine = (bordered: boolean = false): Lines =>
   textLine({
     words: [
       textWord({
-        characters: '\u00A0',
-        className: bordered ? 'error-message' : undefined,
+        characters: "\u00A0",
+        className: bordered ? "error-message" : undefined,
       }),
     ],
-    className: bordered ? 'error-box-content' : undefined,
+    className: bordered ? "error-box-content" : undefined,
   });
 
 const createErrorTitle = (title: string): Lines =>
@@ -20,10 +27,10 @@ const createErrorTitle = (title: string): Lines =>
     words: [
       textWord({
         characters: title,
-        className: 'error-title',
+        className: "error-title",
       }),
     ],
-    className: 'error-box-content',
+    className: "error-box-content",
   });
 
 const createErrorMessage = (message: string): Lines =>
@@ -31,22 +38,22 @@ const createErrorMessage = (message: string): Lines =>
     words: [
       textWord({
         characters: message,
-        className: 'error-message',
+        className: "error-message",
       }),
     ],
-    className: 'error-box-content',
+    className: "error-box-content",
   });
 
 const createRestartButton = (onRestart: () => Promise<void>): Lines =>
   textLine({
     words: [
       buttonWord({
-        characters: '[Restart System]',
+        characters: "[Restart System]",
         onClick: onRestart,
-        className: 'restart-button',
+        className: "restart-button",
       }),
     ],
-    className: 'error-box-content',
+    className: "error-box-content",
   });
 
 export const createErrorDisplay = (
@@ -62,7 +69,7 @@ export const createErrorDisplay = (
   createEmptyLine(true),
 
   // Title
-  createErrorTitle('SYSTEM ERROR'),
+  createErrorTitle("SYSTEM ERROR"),
 
   // Separator
   createEmptyLine(true),
@@ -96,13 +103,13 @@ export const handleError = async ({
   performRecovery,
 }: {
   error: Error;
-  controller: any;
-  terminalHandle: any;
-  setTerminalState: (fn: (prev: any) => any) => void;
-  handleModeTransition: (mode: string, error?: Error) => void;
+  controller: Controller | null;
+  terminalHandle: TerminalHandle;
+  setTerminalState: Dispatch<SetStateAction<TerminalState>>;
+  handleModeTransition: (mode: OperationalMode, error?: Error) => void;
   performRecovery: () => Promise<void>;
 }): Promise<void> => {
-  console.error('[VirtualisTerminal] Error:', error);
+  console.error("[VirtualisTerminal] Error:", error);
 
   // Update state for loading
   setTerminalState((prev) => ({
@@ -117,19 +124,19 @@ export const handleError = async ({
       await controller.unmount();
     } catch (unmountError) {
       console.error(
-        '[VirtualisTerminal] Unmount error during error handling:',
+        "[VirtualisTerminal] Unmount error during error handling:",
         unmountError,
       );
     }
   }
 
   // Transition to error mode
-  handleModeTransition('ERROR', error);
+  handleModeTransition("ERROR", error);
   await terminalHandle.clear();
 
   // Create and display error content
   const onRestart = async () => {
-    await handleModeTransition('RECOVERY');
+    await handleModeTransition("RECOVERY");
     await performRecovery();
   };
 

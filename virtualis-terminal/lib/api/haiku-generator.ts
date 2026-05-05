@@ -1,7 +1,8 @@
 // cogitatio-virtualis/virtualis-terminal/lib/api/haiku-generator.ts
 
-import Anthropic from '@anthropic-ai/sdk';
-import { z } from 'zod';
+import Anthropic from "@anthropic-ai/sdk";
+import { z } from "zod";
+import { anthropicConfig } from "@/lib/api/anthropic-config";
 
 const haikuSchema = z.object({
   haiku: z.string(),
@@ -17,7 +18,7 @@ interface Tool {
   name: string;
   description: string;
   input_schema: {
-    type: 'object';
+    type: "object";
     properties: {
       [key: string]: {
         type: string;
@@ -36,9 +37,9 @@ interface ToolUseInput {
 }
 
 const defaultConfig: Required<HaikuGeneratorConfig> = {
-  maxTokens: 256,
-  temperature: 0.9,
-  model: 'claude-3-5-haiku-latest',
+  maxTokens: anthropicConfig.haiku.maxTokens,
+  temperature: anthropicConfig.haiku.temperature,
+  model: anthropicConfig.haiku.model,
 };
 
 /**
@@ -64,17 +65,17 @@ export class HaikuGenerator {
   ): Promise<string> {
     const tools: Tool[] = [
       {
-        name: 'create_haiku',
-        description: 'Generate a thematic haiku',
+        name: "create_haiku",
+        description: "Generate a thematic haiku",
         input_schema: {
-          type: 'object',
+          type: "object",
           properties: {
             haiku: {
-              type: 'string',
-              description: 'A haiku (three lines) relevant to the context',
+              type: "string",
+              description: "A haiku (three lines) relevant to the context",
             },
           },
-          required: ['haiku'],
+          required: ["haiku"],
         },
       },
     ];
@@ -87,8 +88,8 @@ export class HaikuGenerator {
         system: systemPrompt,
         messages: [
           {
-            role: 'user',
-            content: `Context for inspiration:\n${contextTexts.join('\n\n')}`,
+            role: "user",
+            content: `Context for inspiration:\n${contextTexts.join("\n\n")}`,
           },
         ],
         tools,
@@ -97,12 +98,12 @@ export class HaikuGenerator {
       // Find tool use block in response
       const toolUse = response.content?.find(
         (content): content is Anthropic.ToolUseBlock =>
-          content.type === 'tool_use' && content.name === 'create_haiku',
+          content.type === "tool_use" && content.name === "create_haiku",
       );
 
       if (!toolUse) {
-        console.error('No tool use block found in response:', response.content);
-        throw new Error('No haiku generated');
+        console.error("No tool use block found in response:", response.content);
+        throw new Error("No haiku generated");
       }
 
       // First, cast toolUse.input to ToolUseInput
@@ -110,20 +111,20 @@ export class HaikuGenerator {
 
       // Handle tool input format variability
       const haikuText =
-        typeof toolInput.haiku === 'string'
-          ? toolInput.haiku.replace(/\\n/g, '\n') // Convert literal \n to newlines
-          : toolInput.haiku.join('\n');
+        typeof toolInput.haiku === "string"
+          ? toolInput.haiku.replace(/\\n/g, "\n") // Convert literal \n to newlines
+          : toolInput.haiku.join("\n");
 
       // Parse and validate the haiku
       const parsed = haikuSchema.safeParse({ haiku: haikuText });
 
       if (!parsed.success) {
-        throw new Error('Invalid haiku format');
+        throw new Error("Invalid haiku format");
       }
 
       return parsed.data.haiku;
     } catch (error) {
-      console.error('Haiku generation failed:', error);
+      console.error("Haiku generation failed:", error);
       throw error;
     }
   }

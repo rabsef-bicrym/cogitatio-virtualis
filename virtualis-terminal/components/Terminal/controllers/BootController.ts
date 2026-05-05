@@ -1,20 +1,13 @@
 // cogitatio-virtualis/virtualis-terminal/components/Terminal/controllers/BootController.ts
 
-import { BaseController } from './BaseController';
-import {
-  ControllerState,
-  BootState,
-} from '@/components/Terminal/controllers/types';
-import type { TerminalHandle } from '@/components/Terminal/types/terminal';
-import {
-  sendLine,
-  sendMultiLine,
-  sendMessage,
-} from '@/components/Terminal/utils/printUtils';
+import { BaseController } from "./BaseController";
+import { BootState } from "@/components/Terminal/controllers/types";
+import type { TerminalHandle } from "@/components/Terminal/types/terminal";
+import { sendLine, sendMessage } from "@/components/Terminal/utils/printUtils";
 import {
   ASCII_STYLES,
   COGITATIO_LOGO_LINES,
-} from '@/components/Terminal/config/ascii.config';
+} from "@/components/Terminal/config/ascii.config";
 
 interface BootControllerConfig {
   onBootComplete?: () => void;
@@ -22,31 +15,29 @@ interface BootControllerConfig {
 
 export class BootController extends BaseController {
   state: BootState = {
-    status: 'initializing',
+    status: "initializing",
     messages: [],
     error: null,
   };
 
   constructor(private config: BootControllerConfig = {}) {
     super();
-    console.log('[BootController] Initialized');
   }
 
   public getName(): string {
-    return 'BootController';
+    return "BootController";
   }
 
   public async mount(terminal: TerminalHandle): Promise<void> {
-    console.log('[BootController] Mount started');
     this.terminal = terminal;
 
-    this.setStatus('active');
+    this.setStatus("active");
 
     try {
       await this.runBootSequence();
     } catch (error) {
-      console.error('[BootController] Mount error:', error);
-      this.setStatus('error');
+      console.error("[BootController] Mount error:", error);
+      this.setStatus("error");
       throw error; // Propagate to terminal
     }
   }
@@ -58,15 +49,15 @@ export class BootController extends BaseController {
       // Remove custom styling
       this.updateConfig({
         theme: {
-          customCSS: '',
+          customCSS: "",
         },
       });
 
       await this.clear();
       this.terminal = null;
     } catch (error) {
-      console.error('[BootController] Unmount error:', error);
-      this.setStatus('error');
+      console.error("[BootController] Unmount error:", error);
+      this.setStatus("error");
       throw error;
     }
   }
@@ -77,8 +68,7 @@ export class BootController extends BaseController {
       await this.setLoading(true);
 
       // Initial boot message with original timing
-      await this.print(sendMessage('Initializing boot sequence...\n', 'info'));
-      // await this.delay(500);
+      await this.print(sendMessage("Initializing boot sequence...\n", "info"));
 
       // Fetch and start boot sequence
       const { boot, haiku } = await this.fetchBootSequence();
@@ -96,35 +86,35 @@ export class BootController extends BaseController {
       await this.clear();
       this.updateConfig({
         theme: {
-          customCSS: '', // Clear custom ASCII styling
+          customCSS: "", // Clear custom ASCII styling
         },
       });
 
       // Signal completion after final cleanup pause
       await this.setLoading(false);
-      this.setStatus('complete');
+      this.setStatus("complete");
       this.config.onBootComplete?.();
     });
   }
 
   private async fetchBootSequence() {
     try {
-      const response = await fetch('/api/boot/sequence');
+      const response = await fetch("/api/boot/sequence");
       if (!response.ok) {
-        this.setStatus('error');
+        this.setStatus("error");
         throw new Error(`Boot sequence fetch failed: ${response.statusText}`);
       }
       return await response.json();
     } catch (error) {
-      console.error('[BootController] Boot sequence fetch error:', error);
-      this.setStatus('error');
+      console.error("[BootController] Boot sequence fetch error:", error);
+      this.setStatus("error");
       throw error;
     }
   }
 
   private async printBootMessages(messages: string[]) {
     for (const message of messages) {
-      await this.print(sendMessage(message, 'system'));
+      await this.print(sendMessage(message, "system"));
       // Maintain original random delay behavior
       await this.delay(Math.random() * 2000 + 50);
     }
@@ -148,7 +138,7 @@ export class BootController extends BaseController {
   }
 
   private async printHaiku(haiku: string): Promise<void> {
-    await this.print(sendMessage(haiku, 'assistant'));
+    await this.print(sendMessage(haiku, "assistant"));
     await this.delay(2000); // Original pause for haiku appreciation
   }
 

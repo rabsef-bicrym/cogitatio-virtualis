@@ -14,7 +14,7 @@ export type DeepPartial<T> = {
  * @returns True if the item is a plain object, false otherwise.
  */
 function isMergeableObject(item: unknown): item is Record<string, unknown> {
-  return typeof item === 'object' && item !== null && !Array.isArray(item);
+  return typeof item === "object" && item !== null && !Array.isArray(item);
 }
 
 /**

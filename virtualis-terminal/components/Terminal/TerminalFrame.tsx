@@ -1,7 +1,7 @@
 // cogitatio-virtualis/virtualis-terminal/components/Terminal/TerminalFrame.tsx
 
-import React, { useEffect, useRef, useState } from 'react';
-import type { TerminalConfig } from './types/terminal';
+import React, { useEffect, useRef, useState } from "react";
+import type { TerminalConfig } from "./types/terminal";
 
 interface TerminalFrameProps {
   children: React.ReactNode;
@@ -23,32 +23,31 @@ export const TerminalFrame: React.FC<TerminalFrameProps> = ({
   config,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const contentAreaRef = useRef<HTMLDivElement>(null);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
   const [isLandscape, setIsLandscape] = useState(false);
 
   const handleButtonClick = (buttonName: string) => {
-    console.log(`Button clicked: ${buttonName}`);
-
     switch (buttonName) {
-      case 'Resume': {
-        window.open('/resume', '_blank', 'popup,width=800,height=600');
+      case "Resume": {
+        window.open("/resume", "_blank", "popup,width=800,height=600");
         break;
       }
-      case 'GitHub': {
+      case "GitHub": {
         window
           .open(
-            'https://github.com/rabsef-bicrym/cogitatio-virtualis',
-            '_blank',
-            'noopener',
+            "https://github.com/rabsef-bicrym/cogitatio-virtualis",
+            "_blank",
+            "noopener",
           )
           ?.focus();
         break;
       }
-      case 'Contact': {
+      case "Contact": {
         window.location.href =
-          'mailto:eric.helal@icloud.com?subject=' +
+          "mailto:eric.helal@icloud.com?subject=" +
           encodeURIComponent(
-            'Ref Cog.Vit: Hi Eric - Are you available for an interview?',
+            "Ref Cog.Vit: Hi Eric - Are you available for an interview?",
           );
         break;
       }
@@ -96,44 +95,78 @@ export const TerminalFrame: React.FC<TerminalFrameProps> = ({
     };
 
     calculateDimensions();
-    window.addEventListener('resize', calculateDimensions);
-    window.addEventListener('orientationchange', calculateDimensions);
+    window.addEventListener("resize", calculateDimensions);
+    window.addEventListener("orientationchange", calculateDimensions);
 
     return () => {
-      window.removeEventListener('resize', calculateDimensions);
-      window.removeEventListener('orientationchange', calculateDimensions);
+      window.removeEventListener("resize", calculateDimensions);
+      window.removeEventListener("orientationchange", calculateDimensions);
     };
   }, [config.dimensions]);
 
+  useEffect(() => {
+    const contentArea = contentAreaRef.current;
+    if (!contentArea) return;
+
+    const findScrollContainer = () => {
+      const elements = Array.from(
+        contentArea.querySelectorAll<HTMLElement>("*"),
+      );
+      return elements.find((element) => {
+        const overflowY = window.getComputedStyle(element).overflowY;
+        return overflowY === "auto" || overflowY === "scroll";
+      });
+    };
+
+    const scrollCommandLineIntoView = () => {
+      window.requestAnimationFrame(() => {
+        const scrollContainer = findScrollContainer();
+        if (!scrollContainer) return;
+
+        scrollContainer.scrollTop = scrollContainer.scrollHeight;
+      });
+    };
+
+    contentArea.addEventListener("input", scrollCommandLineIntoView);
+    contentArea.addEventListener("keydown", scrollCommandLineIntoView);
+
+    return () => {
+      contentArea.removeEventListener("input", scrollCommandLineIntoView);
+      contentArea.removeEventListener("keydown", scrollCommandLineIntoView);
+    };
+  }, []);
+
   return (
-    <div className='terminal-frame-container' ref={containerRef}>
+    <div className="terminal-frame-container" ref={containerRef}>
       <div
-        className={`terminal-frame ${className || ''} ${
-          isLandscape ? 'landscape' : 'portrait'
+        className={`terminal-frame ${className || ""} ${
+          isLandscape ? "landscape" : "portrait"
         }`}
         style={{
-          width: dimensions.width ? `${dimensions.width}px` : '100%',
-          height: dimensions.height ? `${dimensions.height}px` : '100%',
+          width: dimensions.width ? `${dimensions.width}px` : "100%",
+          height: dimensions.height ? `${dimensions.height}px` : "100%",
         }}
       >
-        <div className='content-area'>{children}</div>
+        <div className="content-area" ref={contentAreaRef}>
+          {children}
+        </div>
 
-        <div className='bezel-buttons'>
+        <div className="bezel-buttons">
           <button
-            className='bezel-button'
-            onClick={() => handleButtonClick('Resume')}
+            className="bezel-button"
+            onClick={() => handleButtonClick("Resume")}
           >
             Resume
           </button>
           <button
-            className='bezel-button'
-            onClick={() => handleButtonClick('GitHub')}
+            className="bezel-button"
+            onClick={() => handleButtonClick("GitHub")}
           >
             GitHub
           </button>
           <button
-            className='bezel-button'
-            onClick={() => handleButtonClick('Contact')}
+            className="bezel-button"
+            onClick={() => handleButtonClick("Contact")}
           >
             Contact
           </button>
@@ -181,6 +214,30 @@ export const TerminalFrame: React.FC<TerminalFrameProps> = ({
           height: 100%;
           overflow: hidden;
           border-radius: 8px;
+        }
+
+        :global(.terminal-frame .crt-command-line) {
+          display: flex;
+          align-items: flex-start;
+          width: 100%;
+          gap: 0.5ch;
+        }
+
+        :global(.terminal-frame .crt-command-line__prompt) {
+          flex: 0 0 auto;
+        }
+
+        :global(.terminal-frame .crt-command-line__input-wrapper) {
+          display: block;
+          flex: 1 1 auto;
+          min-width: 0;
+        }
+
+        :global(.terminal-frame .crt-command-line__input-string) {
+          display: block;
+          overflow-wrap: anywhere;
+          white-space: normal;
+          word-break: break-word;
         }
 
         .bezel-buttons {
@@ -243,7 +300,7 @@ export const TerminalFrame: React.FC<TerminalFrameProps> = ({
             z-index: 1;
           }
         `
-            : ''
+            : ""
         }
 
         ${
@@ -263,7 +320,7 @@ export const TerminalFrame: React.FC<TerminalFrameProps> = ({
             animation: noise 0.2s infinite;
           }
         `
-            : ''
+            : ""
         }
 
         /* Ensure content is above effects but buttons can still be clicked */

@@ -30,13 +30,17 @@ class ProjectSubType(str, Enum):
 class DeploymentStatus(str, Enum):
     PRODUCTION = "Production"
     INTERNAL = "Internal"
+    OPEN_SOURCE = "Open Source"
     ARCHIVED = "Archived"
 
 class ImpactScope(str, Enum):
     TEAM = "Team"
     DEPARTMENT = "Department"
     COMPANY = "Company"
+    CLIENT = "Client"
     INDUSTRY = "Industry"
+    COMMUNITY = "Community"
+    TBD = "TBD"
 
 class EvolutionStage(str, Enum):
     ACTIVE = "Active"

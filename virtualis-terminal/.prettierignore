@@ -1,0 +1,8 @@
+.next/
+dist/
+node_modules/
+out/
+lib/generated/prisma/
+playwright-report/
+test-results/
+package-lock.json

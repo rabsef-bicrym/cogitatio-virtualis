@@ -5,8 +5,8 @@ After=network.target
 [Service]
 Type=simple
 User=ubuntu
-WorkingDirectory=/home/ubuntu/cogitatio-virtualis
-ExecStart=/home/ubuntu/miniconda3/envs/cv_env/bin/python -m cogitatio-server.scripts.start_server --api-only
+WorkingDirectory=/home/ubuntu/cogitatio-virtualis/cogitatio-server
+ExecStart=/home/ubuntu/cogitatio-virtualis/cogitatio-server/.venv/bin/cogitatio-server --api-only
 Restart=always
 RestartSec=10
 
