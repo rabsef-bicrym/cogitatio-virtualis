@@ -30,6 +30,7 @@ import {
 import TerminalFrame from "./TerminalFrame";
 import { ASCII_ERROR_LINES } from "./config/ascii.config";
 import { DeepPartial } from "@/components/Terminal/utils/deepMerge";
+import { stripTrailingLoaderFrame } from "@/components/Terminal/utils/commandSanitizer";
 
 export interface VirtualisTerminalProps {
   className?: string;
@@ -307,12 +308,16 @@ export const VirtualisTerminal: React.FC<VirtualisTerminalProps> = ({
       if (terminalState.mode !== "NORMAL" || !controller?.handleCommand) return;
 
       try {
-        await controller.handleCommand(command);
+        const sanitizedCommand = stripTrailingLoaderFrame(
+          command,
+          config.loader.slides,
+        );
+        await controller.handleCommand(sanitizedCommand);
       } catch (error) {
         await handleError(error as Error);
       }
     },
-    [controller, terminalState.mode, handleError],
+    [controller, terminalState.mode, handleError, config.loader.slides],
   );
 
   useEffect(() => {
