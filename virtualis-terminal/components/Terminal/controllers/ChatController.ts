@@ -2,9 +2,11 @@ import { BaseController } from "./BaseController";
 import { ControllerState, ChatState } from "./types";
 import type { TerminalHandle } from "../types/terminal";
 import { sendMultiLine, sendMessage } from "../utils/printUtils";
+import type { ThreadMessage } from "@/lib/chat/messageCodec";
 
 interface ChatControllerConfig {
   onChatComplete?: () => void;
+  initialThread?: ThreadMessage[];
 }
 
 interface ChatSSEEvent {
@@ -27,6 +29,21 @@ async function readErrorMessage(response: Response): Promise<string> {
   }
 }
 
+// Lets crt-terminal process queued loader state before user input resumes.
+async function waitForTerminalRender(): Promise<void> {
+  if (typeof window === "undefined") {
+    await Promise.resolve();
+    return;
+  }
+
+  await new Promise<void>((resolve) => {
+    window.requestAnimationFrame(() => resolve());
+  });
+  await new Promise<void>((resolve) => {
+    window.requestAnimationFrame(() => resolve());
+  });
+}
+
 export class ChatController extends BaseController {
   protected terminal: TerminalHandle | null = null;
   state: ChatState = {
@@ -40,6 +57,7 @@ export class ChatController extends BaseController {
 
   private readonly API_TIMEOUT = 60000;
   private readonly MAX_HISTORY = 100;
+  private readonly welcomeMessage = `Cogitatio Virtualis v1.0 [An interactive C.V. by Eric Helal, JD] ༼ ᕤ◕◡◕ ༽ᕤ\n\n>>> System initialized\n>>> Knowledge base loaded\n>>> Natural language processing active\n\nWelcome to Eric's interactive curriculum vitae! I can respond to:\n  - Natural language questions about Eric's experience\n  - Traditional terminal commands\n  - Power user commands (type /help to view)\n\nReady for queries...`;
 
   constructor(private config: ChatControllerConfig = {}) {
     super();
@@ -70,13 +88,14 @@ export class ChatController extends BaseController {
     this.terminal = terminal;
 
     try {
-      // Print initial message and set the status to 'active' after mounting is successful
-      await this.print(
-        sendMessage(
-          `Cogitatio Virtualis v1.0 [An interactive C.V. by Eric Helal, JD] ༼ ᕤ◕◡◕ ༽ᕤ\n\n>>> System initialized\n>>> Knowledge base loaded\n>>> Natural language processing active\n\nWelcome to Eric's interactive curriculum vitae! I can respond to:\n  - Natural language questions about Eric's experience\n  - Traditional terminal commands\n  - Power user commands (type /help to view)\n\nReady for queries...`,
-          "system",
-        ),
-      );
+      await this.setLoading(false);
+      await waitForTerminalRender();
+
+      if (this.config.initialThread?.length) {
+        this.restoreHistory(this.config.initialThread);
+      } else {
+        await this.print(sendMessage(this.welcomeMessage, "system"));
+      }
       this.state.status = "active";
     } catch (error: unknown) {
       if (error instanceof Error) {
@@ -87,6 +106,27 @@ export class ChatController extends BaseController {
           error,
         );
       }
+    }
+  }
+
+  private restoreHistory(thread: ThreadMessage[]): void {
+    for (const message of thread) {
+      if (message.role === "user") {
+        this.restoreUserHistory(message);
+      }
+    }
+
+    this.state.historyIndex = this.state.inputHistory.length;
+  }
+
+  private restoreUserHistory(message: ThreadMessage): void {
+    const visibleTextBlocks = message.content.filter(
+      (block) => block.type === "text",
+    );
+    const commandBlock = visibleTextBlocks[0];
+
+    if (commandBlock?.type === "text") {
+      this.updateHistory(commandBlock.text);
     }
   }
 
@@ -305,6 +345,8 @@ export class ChatController extends BaseController {
         break;
 
       case "complete":
+        await this.setLoading(false);
+        await waitForTerminalRender();
         if (success) {
           if (message) {
             // Process message to convert \n to actual newlines

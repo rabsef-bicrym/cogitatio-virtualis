@@ -28,13 +28,24 @@ import {
   sendMultiLine,
 } from "./utils/printUtils";
 import TerminalFrame from "./TerminalFrame";
+import { RestoredTranscript } from "./RestoredTranscript";
 import { ASCII_ERROR_LINES } from "./config/ascii.config";
 import { DeepPartial } from "@/components/Terminal/utils/deepMerge";
 import { stripTrailingLoaderFrame } from "@/components/Terminal/utils/commandSanitizer";
+import type { ThreadMessage } from "@/lib/chat/messageCodec";
 
 export interface VirtualisTerminalProps {
   className?: string;
   initialConfig?: DeepPartial<TerminalConfig>;
+}
+
+interface ThreadResponse {
+  success: boolean;
+  data?: ThreadMessage[];
+}
+
+interface MountControllerOptions {
+  initialThread?: ThreadMessage[];
 }
 
 export const VirtualisTerminal: React.FC<VirtualisTerminalProps> = ({
@@ -44,7 +55,7 @@ export const VirtualisTerminal: React.FC<VirtualisTerminalProps> = ({
   const eventQueue = useEventQueue();
   const currentResolver = useRef<(() => void) | null>(null);
   const createAndMountControllerRef = useRef<
-    (type: ControllerType) => Promise<void>
+    (type: ControllerType, options?: MountControllerOptions) => Promise<void>
   >(async () => {});
   const handleErrorRef = useRef<(error: Error) => Promise<void>>(
     async () => {},
@@ -53,6 +64,7 @@ export const VirtualisTerminal: React.FC<VirtualisTerminalProps> = ({
   const controllerRef = useRef<Controller | null>(null);
   const clearTerminalRef = useRef(async (): Promise<void> => {});
   const [controller, setController] = useState<Controller | null>(null);
+  const [restoredThread, setRestoredThread] = useState<ThreadMessage[]>([]);
 
   const [terminalState, setTerminalState] = useState<TerminalState>({
     mode: "NORMAL",
@@ -130,7 +142,10 @@ export const VirtualisTerminal: React.FC<VirtualisTerminalProps> = ({
   );
 
   const createAndMountController = useCallback(
-    async (type: ControllerType): Promise<void> => {
+    async (
+      type: ControllerType,
+      options: MountControllerOptions = {},
+    ): Promise<void> => {
       if (!type) return;
 
       try {
@@ -147,8 +162,8 @@ export const VirtualisTerminal: React.FC<VirtualisTerminalProps> = ({
                 },
               });
             case "chat":
-              // Correct implementation (commented for testing):
               return new ChatController({
+                initialThread: options.initialThread,
                 onChatComplete: () => {
                   setTerminalState((prev) => ({
                     ...prev,
@@ -157,10 +172,6 @@ export const VirtualisTerminal: React.FC<VirtualisTerminalProps> = ({
                   }));
                 },
               });
-            // Test implementation - forces error state:
-            // throw new Error(
-            //   'Chat system unavailable - testing error handling',
-            // );
             default:
               return null;
           }
@@ -179,6 +190,26 @@ export const VirtualisTerminal: React.FC<VirtualisTerminalProps> = ({
     },
     [terminalHandle],
   );
+
+  const fetchExistingThread = useCallback(async (): Promise<
+    ThreadMessage[]
+  > => {
+    try {
+      const response = await fetch("/api/chat/threads");
+      if (!response.ok) {
+        console.warn(
+          `[VirtualisTerminal] Thread lookup failed: ${response.statusText}`,
+        );
+        return [];
+      }
+
+      const body = (await response.json()) as ThreadResponse;
+      return body.success && Array.isArray(body.data) ? body.data : [];
+    } catch (error) {
+      console.warn("[VirtualisTerminal] Thread lookup failed:", error);
+      return [];
+    }
+  }, []);
 
   const handleError = useCallback(
     async (error: Error) => {
@@ -334,17 +365,40 @@ export const VirtualisTerminal: React.FC<VirtualisTerminalProps> = ({
   }, [controller]);
 
   useEffect(() => {
-    clearTerminalRef.current();
-    createAndMountControllerRef.current("boot").catch((error) => {
+    let mounted = true;
+
+    async function mountInitialController() {
+      clearTerminalRef.current();
+      const existingThread = await fetchExistingThread();
+      if (!mounted) return;
+
+      if (existingThread.length > 0) {
+        setRestoredThread(existingThread);
+        setTerminalState((prev) => ({
+          ...prev,
+          designatedController: "chat",
+        }));
+        await createAndMountControllerRef.current("chat", {
+          initialThread: existingThread,
+        });
+        return;
+      }
+
+      setRestoredThread([]);
+      await createAndMountControllerRef.current("boot");
+    }
+
+    mountInitialController().catch((error) => {
       handleErrorRef.current(error);
     });
 
     return () => {
+      mounted = false;
       if (controllerRef.current) {
         controllerRef.current.unmount().catch(console.error);
       }
     };
-  }, []);
+  }, [fetchExistingThread]);
 
   const terminalProps = useMemo(
     () => ({
@@ -375,6 +429,7 @@ export const VirtualisTerminal: React.FC<VirtualisTerminalProps> = ({
   return (
     <TerminalFrame className={className} config={config}>
       <CRTTerminal {...terminalProps} />
+      <RestoredTranscript thread={restoredThread} />
     </TerminalFrame>
   );
 };
