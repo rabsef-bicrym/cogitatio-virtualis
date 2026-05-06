@@ -240,6 +240,25 @@ export const TerminalFrame: React.FC<TerminalFrameProps> = ({
           word-break: break-word;
         }
 
+        :global(.terminal-frame .crt-restored-transcript) {
+          display: block;
+        }
+
+        :global(.terminal-frame .crt-restored-line) {
+          min-height: 1.5em;
+          white-space: pre-wrap;
+          overflow-wrap: anywhere;
+          word-break: break-word;
+        }
+
+        :global(.terminal-frame .crt-restored-line.line-spacer) {
+          min-height: 1.5em;
+        }
+
+        :global(.terminal-frame .crt-restored-word) {
+          display: inline;
+        }
+
         .bezel-buttons {
           position: absolute;
           top: 0.5px

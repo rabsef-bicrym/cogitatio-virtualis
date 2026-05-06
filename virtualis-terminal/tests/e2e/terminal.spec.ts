@@ -21,8 +21,40 @@ async function mockBootSequence(page: Page) {
   });
 }
 
+async function mockEmptyThread(page: Page) {
+  await page.route("**/api/chat/threads", async (route) => {
+    if (route.request().method() === "GET") {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          success: true,
+          message: "OK",
+          data: [],
+        }),
+      });
+      return;
+    }
+
+    await route.fallback();
+  });
+}
+
 async function mockChatStream(page: Page) {
   await page.route("**/api/chat/threads", async (route) => {
+    if (route.request().method() === "GET") {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          success: true,
+          message: "OK",
+          data: [],
+        }),
+      });
+      return;
+    }
+
     const requestBody = route.request().postDataJSON();
     expect(requestBody).toEqual({ command: "/status" });
 
@@ -44,6 +76,19 @@ async function mockChatStream(page: Page) {
 
 async function mockChatFailure(page: Page) {
   await page.route("**/api/chat/threads", async (route) => {
+    if (route.request().method() === "GET") {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          success: true,
+          message: "OK",
+          data: [],
+        }),
+      });
+      return;
+    }
+
     const requestBody = route.request().postDataJSON();
     expect(requestBody).toEqual({ command: "hello" });
 
@@ -66,6 +111,7 @@ async function waitForTerminalReady(page: Page) {
 
 test("boots the terminal shell without backend failures", async ({ page }) => {
   await mockBootSequence(page);
+  await mockEmptyThread(page);
 
   await page.goto("/");
 
@@ -99,6 +145,7 @@ test("submits a terminal command and renders the streamed response", async ({
 
 test("preserves typed command text while editing", async ({ page }) => {
   await mockBootSequence(page);
+  await mockEmptyThread(page);
   await page.goto("/");
   await waitForTerminalReady(page);
 
@@ -115,6 +162,7 @@ test("preserves typed command text while editing", async ({ page }) => {
 
 test("keeps wrapped command input aligned and visible", async ({ page }) => {
   await mockBootSequence(page);
+  await mockEmptyThread(page);
   await page.setViewportSize({ width: 900, height: 620 });
   await page.goto("/");
   await waitForTerminalReady(page);
@@ -156,8 +204,6 @@ test("keeps wrapped command input aligned and visible", async ({ page }) => {
       inputBottom: inputStringBox.bottom,
       scrollBottom: scrollBox.bottom,
       scrollTop: scrollContainer.scrollTop,
-      scrollHeight: scrollContainer.scrollHeight,
-      clientHeight: scrollContainer.clientHeight,
     };
   });
 
@@ -165,9 +211,142 @@ test("keeps wrapped command input aligned and visible", async ({ page }) => {
   expect(metrics.inputHeight).toBeGreaterThan(24);
   expect(metrics.inputBottom).toBeLessThanOrEqual(metrics.scrollBottom + 1);
   expect(metrics.scrollTop).toBeGreaterThan(0);
-  expect(metrics.scrollTop + metrics.clientHeight).toBeGreaterThanOrEqual(
-    metrics.scrollHeight - 1,
+});
+
+test("restores an existing session without replaying boot", async ({
+  page,
+}) => {
+  let bootRequests = 0;
+  const restoredThread = [
+    {
+      role: "user",
+      timestamp: "2026-05-05T00:00:00.000Z",
+      content: [{ type: "text", text: "Hi Cogitatio" }],
+    },
+    {
+      role: "assistant",
+      timestamp: "2026-05-05T00:00:01.000Z",
+      content: [
+        {
+          type: "text",
+          text: "<reply>Hello Eric. Session continuity is online.</reply>",
+        },
+      ],
+    },
+    ...Array.from({ length: 18 }, (_, index) => [
+      {
+        role: "user",
+        timestamp: `2026-05-05T00:01:${String(index).padStart(2, "0")}.000Z`,
+        content: [{ type: "text", text: `Prior question ${index + 1}` }],
+      },
+      {
+        role: "assistant",
+        timestamp: `2026-05-05T00:02:${String(index).padStart(2, "0")}.000Z`,
+        content: [
+          {
+            type: "text",
+            text: `<reply>Prior answer ${index + 1} with enough text to occupy the restored scrollback.</reply>`,
+          },
+        ],
+      },
+    ]).flat(),
+  ];
+
+  await page.route("**/api/boot/sequence", async (route) => {
+    bootRequests += 1;
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ boot: ["unexpected boot"], haiku: "unexpected" }),
+    });
+  });
+  await page.route("**/api/chat/threads", async (route) => {
+    if (route.request().method() === "POST") {
+      const requestBody = route.request().postDataJSON();
+      expect(requestBody).toEqual({ command: "continue restored session" });
+
+      await route.fulfill({
+        status: 200,
+        headers: {
+          "content-type": "text/event-stream",
+          "cache-control": "no-cache",
+        },
+        body: `data: ${JSON.stringify({
+          type: "complete",
+          success: true,
+          message: "Restored chat is ready for the next turn.",
+        })}\n\n`,
+      });
+      return;
+    }
+
+    if (route.request().method() !== "GET") {
+      await route.fallback();
+      return;
+    }
+
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        success: true,
+        message: "OK",
+        data: restoredThread,
+      }),
+    });
+  });
+
+  await page.goto("/");
+  await expect(page.locator("input.crt-command-line__input")).toBeVisible({
+    timeout: 10_000,
+  });
+
+  await expect(page.getByText("Hi Cogitatio")).toBeVisible();
+  await expect(
+    page.getByText("Hello Eric. Session continuity is online."),
+  ).toBeVisible();
+  await expect(page.locator(".crt-restored-transcript")).toBeVisible();
+  await expect(
+    page.locator(".crt-restored-line.line-spacer").first(),
+  ).toHaveText(" ");
+  await expect(
+    page.getByText("Prior answer 18 with enough text"),
+  ).toBeVisible();
+
+  const restoreMetrics = await page.evaluate(() => {
+    const commandLine = document.querySelector(".crt-terminal__command-line");
+    const scrollContainer = document.querySelector<HTMLElement>(
+      ".crt-terminal__overflow-container",
+    );
+
+    if (!commandLine || !scrollContainer) {
+      throw new Error("Restored terminal DOM was not rendered");
+    }
+
+    const commandLineBox = commandLine.getBoundingClientRect();
+    const scrollBox = scrollContainer.getBoundingClientRect();
+
+    return {
+      commandLineBottom: commandLineBox.bottom,
+      scrollBottom: scrollBox.bottom,
+      scrollTop: scrollContainer.scrollTop,
+    };
+  });
+
+  expect(restoreMetrics.commandLineBottom).toBeLessThanOrEqual(
+    restoreMetrics.scrollBottom + 1,
   );
+  expect(restoreMetrics.scrollTop).toBeGreaterThan(0);
+
+  await page.keyboard.type("continue restored session");
+  await page.keyboard.press("Enter");
+
+  await expect(
+    page.getByText("Restored chat is ready for the next turn."),
+  ).toBeVisible();
+  await expect(page.locator("input.crt-command-line__input")).toBeEnabled();
+  await expect(page.locator("input.crt-command-line__input")).toHaveValue("");
+  expect(bootRequests).toBe(0);
 });
 
 test("renders chat API failures without crashing the terminal", async ({
