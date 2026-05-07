@@ -95,12 +95,6 @@
   line-height: 1.65;
 }
 
-.hint {
-  color: rgba(184, 255, 187, 0.62);
-  font-size: 12px;
-  line-height: 1.45;
-}
-
 .actions {
   display: flex;
   flex-direction: column;
@@ -153,5 +147,70 @@
 @media (prefers-reduced-motion: reduce) {
   .cursor {
     animation: none;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 649px) {
+  .stage {
+    align-items: center;
+    justify-items: center;
+    padding: max(12px, env(safe-area-inset-top))
+      max(18px, env(safe-area-inset-right))
+      max(12px, env(safe-area-inset-bottom))
+      max(18px, env(safe-area-inset-left));
+  }
+
+  .panel {
+    width: min(100%, 760px);
+    max-height: calc(100svh - 24px);
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(150px, 190px);
+    grid-template-rows: auto 1fr auto;
+    grid-template-areas:
+      "logo actions"
+      "status actions"
+      "prompt actions";
+    column-gap: 28px;
+    row-gap: 12px;
+    align-items: center;
+  }
+
+  .logoFrame {
+    grid-area: logo;
+    font-size: 6px;
+    line-height: 1;
+    padding: 10px 0 8px;
+  }
+
+  .status {
+    grid-area: status;
+    gap: 10px;
+    align-self: start;
+  }
+
+  .heading {
+    font-size: 14px;
+    line-height: 1.25;
+  }
+
+  .body {
+    font-size: 13px;
+    line-height: 1.45;
+  }
+
+  .actions {
+    grid-area: actions;
+    align-self: center;
+    gap: 12px;
+  }
+
+  .actions a {
+    min-height: 52px;
+    padding: 0 2px;
+  }
+
+  .prompt {
+    grid-area: prompt;
+    align-self: end;
   }
 }

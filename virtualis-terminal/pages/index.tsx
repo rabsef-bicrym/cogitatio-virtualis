@@ -6,27 +6,53 @@ import { MobileDenial } from "@/components/MobileDenial/MobileDenial";
 import { RoomScene } from "@/components/RoomScene/RoomScene";
 import { VirtualisTerminal } from "@/components/Terminal/VirtualisTerminal";
 
+const MIN_DESKTOP_WIDTH = 900;
+const MIN_DESKTOP_HEIGHT = 650;
+const DESKTOP_EXPERIENCE_QUERY = `(min-width: ${MIN_DESKTOP_WIDTH}px) and (min-height: ${MIN_DESKTOP_HEIGHT}px)`;
+
+interface ExperienceState {
+  isDesktop: boolean;
+  canRotateToDesktop: boolean;
+}
+
 /**
  * Tracks the viewport class that decides which experience should mount.
  */
-function useDesktopExperience(): boolean | null {
-  const [isDesktop, setIsDesktop] = useState<boolean | null>(null);
+function useDesktopExperience(): ExperienceState | null {
+  const [experience, setExperience] = useState<ExperienceState | null>(null);
 
   useEffect(() => {
-    const query = window.matchMedia("(min-width: 769px)");
-    const update = () => setIsDesktop(query.matches);
+    const query = window.matchMedia(DESKTOP_EXPERIENCE_QUERY);
+    const update = () => {
+      const { innerWidth, innerHeight } = window;
+      const canRotateToDesktop =
+        innerWidth < innerHeight &&
+        innerHeight >= MIN_DESKTOP_WIDTH &&
+        innerWidth >= MIN_DESKTOP_HEIGHT;
+
+      setExperience({
+        isDesktop: query.matches,
+        canRotateToDesktop,
+      });
+    };
 
     update();
     query.addEventListener("change", update);
+    window.addEventListener("resize", update);
+    window.addEventListener("orientationchange", update);
 
-    return () => query.removeEventListener("change", update);
+    return () => {
+      query.removeEventListener("change", update);
+      window.removeEventListener("resize", update);
+      window.removeEventListener("orientationchange", update);
+    };
   }, []);
 
-  return isDesktop;
+  return experience;
 }
 
 export default function Home() {
-  const isDesktop = useDesktopExperience();
+  const experience = useDesktopExperience();
 
   return (
     <>
@@ -41,14 +67,16 @@ export default function Home() {
 
       <main className="home-shell">
         <div className="desktop-experience">
-          {isDesktop ? (
+          {experience?.isDesktop ? (
             <RoomScene>
               <VirtualisTerminal />
             </RoomScene>
           ) : null}
         </div>
         <div className="mobile-experience">
-          {isDesktop === false ? <MobileDenial /> : null}
+          {experience?.isDesktop === false ? (
+            <MobileDenial canRotateToDesktop={experience.canRotateToDesktop} />
+          ) : null}
         </div>
       </main>
 
@@ -67,7 +95,8 @@ export default function Home() {
           display: none;
         }
 
-        @media (max-width: 768px) {
+        @media (max-width: ${MIN_DESKTOP_WIDTH - 1}px),
+          (max-height: ${MIN_DESKTOP_HEIGHT - 1}px) {
           .desktop-experience {
             display: none;
           }

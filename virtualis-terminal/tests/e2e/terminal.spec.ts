@@ -223,7 +223,7 @@ test("preserves typed command text while editing", async ({ page }) => {
 test("keeps wrapped command input aligned and visible", async ({ page }) => {
   await mockBootSequence(page);
   await mockEmptyThread(page);
-  await page.setViewportSize({ width: 900, height: 620 });
+  await page.setViewportSize({ width: 900, height: 650 });
   await page.goto("/");
   await waitForTerminalReady(page);
 
@@ -442,7 +442,80 @@ test("shows the intentional mobile replacement surface", async ({ page }) => {
   await expect(
     page.getByText("TERMINAL REQUIRES LARGER DISPLAY"),
   ).toBeVisible();
-  await expect(page.getByText("Open this address on a computer")).toBeVisible();
+  await expect(page.getByText("TRY YOUR DEVICE IN LANDSCAPE")).toHaveCount(0);
+  await expect(
+    page.getByText(/Cogitatio Virtualis is a CRT-style terminal experience/),
+  ).toBeVisible();
   await expect(page.getByRole("link", { name: /View resume/ })).toBeVisible();
   await expect(page.locator("input.crt-command-line__input")).toBeHidden();
+});
+
+test("prompts tablet portrait users to rotate when landscape would work", async ({
+  page,
+}) => {
+  await mockBootSequence(page);
+  await mockEmptyThread(page);
+  await page.setViewportSize({ width: 768, height: 1024 });
+
+  await page.goto("/");
+
+  await expect(page.getByText("TRY YOUR DEVICE IN LANDSCAPE")).toBeVisible();
+  await expect(
+    page.getByText(/technically compatible in landscape/),
+  ).toBeVisible();
+  await expect(page.locator("input.crt-command-line__input")).toBeHidden();
+});
+
+test("keeps small landscape denial actions visible on the right", async ({
+  page,
+}) => {
+  await mockBootSequence(page);
+  await mockEmptyThread(page);
+  await page.setViewportSize({ width: 844, height: 390 });
+
+  await page.goto("/");
+
+  const heading = page.getByText("TERMINAL REQUIRES LARGER DISPLAY");
+  const resumeLink = page.getByRole("link", { name: /View resume/ });
+  const contactLink = page.getByRole("link", { name: /Contact/ });
+
+  await expect(heading).toBeVisible();
+  await expect(resumeLink).toBeVisible();
+  await expect(contactLink).toBeVisible();
+  await expect(page.getByText("TRY YOUR DEVICE IN LANDSCAPE")).toHaveCount(0);
+
+  const layout = await page.evaluate(() => {
+    const heading = document.evaluate(
+      "//*[text()='TERMINAL REQUIRES LARGER DISPLAY']",
+      document,
+      null,
+      XPathResult.FIRST_ORDERED_NODE_TYPE,
+    ).singleNodeValue as HTMLElement | null;
+    const resume = Array.from(document.querySelectorAll("a")).find((link) =>
+      link.textContent?.includes("View resume"),
+    );
+    const contact = Array.from(document.querySelectorAll("a")).find((link) =>
+      link.textContent?.includes("Contact"),
+    );
+
+    if (!heading || !resume || !contact) {
+      throw new Error("Landscape denial controls were not rendered");
+    }
+
+    const headingBox = heading.getBoundingClientRect();
+    const resumeBox = resume.getBoundingClientRect();
+    const contactBox = contact.getBoundingClientRect();
+
+    return {
+      headingRight: headingBox.right,
+      resumeLeft: resumeBox.left,
+      resumeBottom: resumeBox.bottom,
+      contactBottom: contactBox.bottom,
+      viewportHeight: window.innerHeight,
+    };
+  });
+
+  expect(layout.resumeLeft).toBeGreaterThan(layout.headingRight);
+  expect(layout.resumeBottom).toBeLessThanOrEqual(layout.viewportHeight);
+  expect(layout.contactBottom).toBeLessThanOrEqual(layout.viewportHeight);
 });

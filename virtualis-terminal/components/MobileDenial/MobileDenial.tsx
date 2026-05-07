@@ -2,10 +2,21 @@ import styles from "./MobileDenial.module.css";
 import { COGITATIO_LOGO_TEXT } from "@/components/Terminal/config/ascii.config";
 import Link from "next/link";
 
+interface MobileDenialProps {
+  canRotateToDesktop: boolean;
+}
+
 /**
  * Replaces the terminal on small screens with an intentional denial surface.
  */
-export function MobileDenial() {
+export function MobileDenial({ canRotateToDesktop }: MobileDenialProps) {
+  const heading = canRotateToDesktop
+    ? "TRY YOUR DEVICE IN LANDSCAPE"
+    : "TERMINAL REQUIRES LARGER DISPLAY";
+  const body = canRotateToDesktop
+    ? "Cogitatio Virtualis is a CRT-style terminal experience. It is best encountered on a larger landscape display, late at night, with the lights turned down. Your device is technically compatible in landscape. Try it, if you'd like."
+    : "Cogitatio Virtualis is a CRT-style terminal experience. It is best encountered on a larger landscape display, late at night, with the lights turned down.";
+
   return (
     <main className={styles.stage} role="main">
       <div className={styles.panel}>
@@ -14,15 +25,8 @@ export function MobileDenial() {
         </pre>
 
         <div className={styles.status}>
-          <div className={styles.heading}>TERMINAL REQUIRES LARGER DISPLAY</div>
-          <p className={styles.body}>
-            Cogitatio Virtualis is a CRT-style terminal experience. It is best
-            encountered on a desktop browser, late at night, with the lights
-            turned down.
-          </p>
-          <div className={styles.hint}>
-            Open this address on a computer to begin.
-          </div>
+          <div className={styles.heading}>{heading}</div>
+          <p className={styles.body}>{body}</p>
         </div>
 
         <div className={styles.actions}>
