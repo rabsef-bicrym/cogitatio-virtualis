@@ -5,7 +5,7 @@ import {
   LineOptions,
 } from "@/components/Terminal/utils/printUtils"; // Adjust the import path as necessary
 
-const COGITATIO_LOGO = [
+export const COGITATIO_LOGO = [
   "▄████▄   ▒█████    ▄████  ██▓▄▄▄█████▓ ▄▄▄     ▄▄▄█████▓ ██▓ ▒█████  ",
   "▒██▀ ▀█  ▒██▒  ██▒ ██▒ ▀█▒▓██▒▓  ██▒ ▓▒▒████▄   ▓  ██▒ ▓▒▓██▒▒██▒  ██▒",
   "▒▓█    ▄ ▒██░  ██▒▒██░▄▄▄░▒██▒▒ ▓██░ ▒░▒██  ▀█▄ ▒ ▓██░ ▒░▒██▒▒██░  ██▒",
@@ -17,6 +17,8 @@ const COGITATIO_LOGO = [
   "░ ░          ░ ░        ░  ░                 ░  ░         ░      ░ ░  ",
   "                                                                      ",
 ];
+
+export const COGITATIO_LOGO_TEXT = COGITATIO_LOGO.join("\n");
 
 export const COGITATIO_LOGO_LINES = COGITATIO_LOGO.map((line) => ({
   words: [

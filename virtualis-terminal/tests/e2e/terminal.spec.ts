@@ -103,6 +103,44 @@ async function mockChatFailure(page: Page) {
   });
 }
 
+async function mockProgressStream(page: Page) {
+  await page.route("**/api/chat/threads", async (route) => {
+    if (route.request().method() === "GET") {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          success: true,
+          message: "OK",
+          data: [],
+        }),
+      });
+      return;
+    }
+
+    const requestBody = route.request().postDataJSON();
+    expect(requestBody).toEqual({ command: "please think slowly" });
+
+    await route.fulfill({
+      status: 200,
+      headers: {
+        "content-type": "text/event-stream",
+        "cache-control": "no-cache",
+      },
+      body:
+        `data: ${JSON.stringify({
+          type: "progress",
+          message: ">>> reticulating splines",
+        })}\n\n` +
+        `data: ${JSON.stringify({
+          type: "complete",
+          success: true,
+          message: "The machine has returned.",
+        })}\n\n`,
+    });
+  });
+}
+
 async function waitForTerminalReady(page: Page) {
   await expect(page.getByText(/Ready for queries/)).toBeVisible({
     timeout: 45_000,
@@ -143,6 +181,28 @@ test("submits a terminal command and renders the streamed response", async ({
   ).toBeVisible({ timeout: 10_000 });
 });
 
+test("renders ambient progress events during a long response", async ({
+  page,
+}) => {
+  await mockBootSequence(page);
+  await mockProgressStream(page);
+
+  await page.goto("/");
+
+  const commandInput = page.locator("input.crt-command-line__input");
+  await waitForTerminalReady(page);
+  await commandInput.focus();
+  await page.keyboard.type("please think slowly");
+  await page.keyboard.press("Enter");
+
+  await expect(page.getByText(">>> reticulating splines")).toBeVisible({
+    timeout: 10_000,
+  });
+  await expect(page.getByText("The machine has returned.")).toBeVisible({
+    timeout: 10_000,
+  });
+});
+
 test("preserves typed command text while editing", async ({ page }) => {
   await mockBootSequence(page);
   await mockEmptyThread(page);
@@ -181,12 +241,9 @@ test("keeps wrapped command input aligned and visible", async ({ page }) => {
     const inputString = document.querySelector(
       ".crt-command-line__input-string",
     );
-    const scrollContainer = Array.from(
-      document.querySelectorAll<HTMLElement>(".content-area *"),
-    ).find((element) => {
-      const overflowY = window.getComputedStyle(element).overflowY;
-      return overflowY === "auto" || overflowY === "scroll";
-    });
+    const scrollContainer = document.querySelector<HTMLElement>(
+      ".crt-terminal__overflow-container",
+    );
 
     if (!prompt || !inputWrapper || !inputString || !scrollContainer) {
       throw new Error("Terminal command line was not rendered");
@@ -373,4 +430,19 @@ test("renders chat API failures without crashing the terminal", async ({
   });
   await expect(page.getByText("SYSTEM ERROR")).toHaveCount(0);
   expect(pageErrors).toEqual([]);
+});
+
+test("shows the intentional mobile replacement surface", async ({ page }) => {
+  await mockBootSequence(page);
+  await mockEmptyThread(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+
+  await page.goto("/");
+
+  await expect(
+    page.getByText("TERMINAL REQUIRES LARGER DISPLAY"),
+  ).toBeVisible();
+  await expect(page.getByText("Open this address on a computer")).toBeVisible();
+  await expect(page.getByRole("link", { name: /View resume/ })).toBeVisible();
+  await expect(page.locator("input.crt-command-line__input")).toBeHidden();
 });

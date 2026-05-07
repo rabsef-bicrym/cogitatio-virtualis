@@ -1,0 +1,995 @@
+.tk-stage {
+  --tk-phosphor: #39ff5a;
+  --tk-room-1: #060403;
+  --tk-room-2: #100b07;
+  --tk-room-3: #1a120a;
+  --tk-rim: rgba(255, 160, 70, 0.32);
+  --tk-floor: rgba(255, 130, 50, 0.12);
+  --tk-plastic-hi: #2c2520;
+  --tk-plastic: #1d1814;
+  --tk-plastic-lo: #100d0a;
+  --tk-plastic-edge: #3e362c;
+  --tk-engrave: #7a6e60;
+  --tk-engrave-hi: rgba(255, 195, 130, 0.28);
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: #050403;
+}
+
+.tk-room {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(120% 80% at 65% 20%, var(--tk-rim) 0%, transparent 38%),
+    radial-gradient(140% 90% at 50% 130%, var(--tk-floor) 0%, transparent 55%),
+    linear-gradient(
+      180deg,
+      var(--tk-room-1) 0%,
+      var(--tk-room-2) 55%,
+      var(--tk-room-3) 100%
+    );
+}
+
+.tk-rim {
+  position: absolute;
+  top: -10%;
+  right: -10%;
+  width: 60%;
+  height: 60%;
+  background: radial-gradient(
+    ellipse at 70% 30%,
+    var(--tk-rim) 0%,
+    transparent 60%
+  );
+  filter: blur(40px);
+  mix-blend-mode: screen;
+}
+
+.tk-streetlight {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(
+      50% 70% at 100% 30%,
+      rgba(255, 165, 80, 0.15) 0%,
+      transparent 55%
+    ),
+    radial-gradient(
+      80% 100% at 110% 50%,
+      rgba(255, 140, 60, 0.06) 0%,
+      transparent 60%
+    );
+  mix-blend-mode: screen;
+}
+
+.tk-blinds-perspective {
+  position: absolute;
+  inset: -10%;
+  pointer-events: none;
+  z-index: 1;
+  transform-origin: top right;
+  transform-style: preserve-3d;
+  transform: matrix3d(
+    0.88,
+    -0.04,
+    0,
+    0.0006,
+    0,
+    1,
+    0,
+    0,
+    0,
+    0,
+    1,
+    0,
+    0,
+    0,
+    0,
+    1
+  );
+}
+
+.tk-blinds {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(
+      90deg,
+      transparent 0%,
+      transparent calc(18% - 1px),
+      rgba(0, 0, 0, 0.45) 18%,
+      rgba(0, 0, 0, 0.45) calc(18% + 1px),
+      transparent calc(18% + 2px),
+      transparent 100%
+    ),
+    linear-gradient(
+      90deg,
+      transparent 0%,
+      transparent calc(86% - 1px),
+      rgba(0, 0, 0, 0.45) 86%,
+      rgba(0, 0, 0, 0.45) calc(86% + 1px),
+      transparent calc(86% + 2px),
+      transparent 100%
+    ),
+    repeating-linear-gradient(
+      179deg,
+      rgba(0, 0, 0, 0) 0,
+      rgba(0, 0, 0, 0) 14px,
+      rgba(0, 0, 0, 0.35) 16px,
+      rgba(0, 0, 0, 0.35) 26px,
+      rgba(0, 0, 0, 0) 28px
+    );
+  mask-image: radial-gradient(80% 80% at 100% 50%, #000 20%, transparent 75%);
+  -webkit-mask-image: radial-gradient(
+    80% 80% at 100% 50%,
+    #000 20%,
+    transparent 75%
+  );
+  mix-blend-mode: multiply;
+  opacity: 0.55;
+  transform: rotate(-2deg);
+}
+
+.tk-progressive-blur {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.tk-progressive-blur > div {
+  position: absolute;
+  inset: 0;
+  backdrop-filter: blur(var(--pb-amt));
+  -webkit-backdrop-filter: blur(var(--pb-amt));
+  mask-image: linear-gradient(
+    252deg,
+    transparent,
+    transparent var(--pb-s1),
+    #000 var(--pb-s2),
+    #000
+  );
+  -webkit-mask-image: linear-gradient(
+    252deg,
+    transparent,
+    transparent var(--pb-s1),
+    #000 var(--pb-s2),
+    #000
+  );
+}
+
+.tk-progressive-blur > div:nth-child(1) {
+  --pb-amt: 2px;
+  --pb-s1: 0%;
+  --pb-s2: 0%;
+}
+
+.tk-progressive-blur > div:nth-child(2) {
+  --pb-amt: 5px;
+  --pb-s1: 40%;
+  --pb-s2: 80%;
+}
+
+.tk-progressive-blur > div:nth-child(3) {
+  --pb-amt: 10px;
+  --pb-s1: 70%;
+  --pb-s2: 90%;
+}
+
+.tk-floor {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 30%;
+  background: linear-gradient(180deg, transparent, rgba(0, 0, 0, 0.6));
+}
+
+.tk-horizon {
+  position: absolute;
+  right: 0;
+  bottom: 22%;
+  left: 0;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.06),
+    transparent
+  );
+}
+
+.tk-motes {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  mix-blend-mode: screen;
+}
+
+.tk-motes span {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255, 195, 130, 0.9);
+  box-shadow:
+    0 0 3px rgba(255, 185, 105, 0.6),
+    0 0 7px rgba(255, 165, 75, 0.3);
+  filter: blur(0.4px);
+  opacity: 0;
+  animation: tk-mote 18s linear infinite;
+  will-change: transform, opacity;
+}
+
+@keyframes tk-mote {
+  0% {
+    opacity: 0;
+    transform: translateY(-30px) translateX(0);
+  }
+  20% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 0.45;
+    transform: translateY(40px) translateX(10px);
+  }
+  85% {
+    opacity: 0.35;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(110px) translateX(22px);
+  }
+}
+
+.tk-carpass {
+  position: absolute;
+  z-index: 0;
+  width: 180%;
+  height: 180%;
+  pointer-events: none;
+  opacity: 0;
+  background: radial-gradient(
+    ellipse 50% 60% at 50% 50%,
+    rgba(var(--car-color), 1) 0%,
+    rgba(var(--car-color), 0.85) 25%,
+    rgba(var(--car-color), 0.55) 45%,
+    rgba(var(--car-color), 0.2) 70%,
+    transparent 90%
+  );
+  filter: blur(60px);
+  mask-image: linear-gradient(245deg, transparent 0%, #000 50%);
+  mix-blend-mode: screen;
+  animation: var(--carpass-anim, tk-carpass-down) var(--car-speed, 3s)
+    cubic-bezier(0.45, 0.05, 0.55, 0.95) forwards;
+}
+
+.tk-carpass-ltr {
+  --carpass-anim: tk-carpass-down;
+}
+
+.tk-carpass-rtl {
+  --carpass-anim: tk-carpass-up;
+}
+
+@keyframes tk-carpass-down {
+  0% {
+    top: -50%;
+    left: 10%;
+    opacity: 0;
+  }
+  25% {
+    opacity: 0.85;
+  }
+  50% {
+    top: -25%;
+    left: -15%;
+    opacity: 1;
+  }
+  75% {
+    opacity: 0.7;
+  }
+  100% {
+    top: 0%;
+    left: -40%;
+    opacity: 0;
+  }
+}
+
+@keyframes tk-carpass-up {
+  0% {
+    top: 0%;
+    left: -40%;
+    opacity: 0;
+  }
+  25% {
+    opacity: 0.85;
+  }
+  50% {
+    top: -25%;
+    left: -15%;
+    opacity: 1;
+  }
+  75% {
+    opacity: 0.7;
+  }
+  100% {
+    top: -50%;
+    left: 10%;
+    opacity: 0;
+  }
+}
+
+.tk-stage-pass .tk-streetlight {
+  animation: tk-streetlight-dim var(--car-speed, 3s) ease-in-out forwards;
+}
+
+@keyframes tk-streetlight-dim {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  40%,
+  60% {
+    opacity: 0.3;
+  }
+}
+
+.tk-ped {
+  position: absolute;
+  z-index: 0;
+  display: flex;
+  align-items: flex-end;
+  gap: 28px;
+  height: 95%;
+  pointer-events: none;
+  --ped-scale: 1;
+  mask-image: linear-gradient(245deg, transparent 0%, #000 35%);
+  -webkit-mask-image: linear-gradient(245deg, transparent 0%, #000 35%);
+  animation: var(--ped-anim, tk-ped-walk-ltr) var(--ped-speed, 6s) linear
+    forwards;
+}
+
+.tk-ped-ltr {
+  --ped-anim: tk-ped-walk-ltr;
+}
+
+.tk-ped-rtl {
+  --ped-anim: tk-ped-walk-rtl;
+}
+
+.tk-ped-couple {
+  gap: 40px;
+}
+
+@keyframes tk-ped-walk-ltr {
+  0% {
+    left: -40%;
+    top: 70%;
+    opacity: 0.58;
+    filter: blur(2.4px);
+    transform: scale(calc(var(--ped-scale) * 0.75));
+  }
+  100% {
+    left: 120%;
+    top: 18%;
+    opacity: 0.96;
+    filter: blur(0.35px);
+    transform: scale(calc(var(--ped-scale) * 1.1));
+  }
+}
+
+@keyframes tk-ped-walk-rtl {
+  0% {
+    left: 120%;
+    top: 18%;
+    opacity: 0.96;
+    filter: blur(0.35px);
+    transform: scale(calc(var(--ped-scale) * 1.1));
+  }
+  100% {
+    left: -40%;
+    top: 70%;
+    opacity: 0.58;
+    filter: blur(2.4px);
+    transform: scale(calc(var(--ped-scale) * 0.75));
+  }
+}
+
+.tk-ped-figure {
+  position: relative;
+  height: 100%;
+  aspect-ratio: 1 / 2;
+  flex: 0 0 auto;
+  filter: blur(0.35px);
+  transform-origin: bottom center;
+  animation: tk-ped-bob 0.55s ease-in-out infinite;
+}
+
+.tk-ped-figure::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: var(--ped-image);
+  background-repeat: no-repeat;
+  background-position: bottom center;
+  background-size: contain;
+  opacity: 0.85;
+}
+
+.tk-ped-figure-flip::before {
+  transform: scaleX(-1);
+}
+
+.tk-ped > .tk-ped-figure:nth-child(2) {
+  filter: blur(0.7px);
+  opacity: 0.85;
+  animation-delay: -0.22s;
+}
+
+@keyframes tk-ped-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+.tk-monitor {
+  position: relative;
+  z-index: 5;
+  width: min(78vw, 880px);
+  max-height: min(86vh, 760px);
+  padding: 16px 16px 0;
+  border: 1px solid rgba(0, 0, 0, 0.7);
+  border-radius: 5px;
+  background:
+    radial-gradient(90% 60% at 30% 0%, var(--tk-plastic-hi), transparent 60%),
+    radial-gradient(60% 40% at 80% 100%, var(--tk-plastic-lo), transparent 70%),
+    var(--tk-plastic);
+  box-shadow:
+    0 30px 60px rgba(0, 0, 0, 0.8),
+    0 8px 18px rgba(0, 0, 0, 0.6),
+    inset 0 1px 0 var(--tk-engrave-hi),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.7),
+    inset 4px 0 12px rgba(0, 0, 0, 0.45),
+    inset -4px 0 12px rgba(0, 0, 0, 0.55);
+}
+
+.tk-highlight,
+.tk-yellow,
+.tk-monitor-litside,
+.tk-monitor-headlight,
+.tk-dust {
+  position: absolute;
+  pointer-events: none;
+}
+
+.tk-highlight {
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 28%;
+  border-radius: 5px 5px 0 0;
+  background: linear-gradient(
+    115deg,
+    transparent 30%,
+    var(--tk-engrave-hi) 65%,
+    transparent 90%
+  );
+  opacity: 0.55;
+  mix-blend-mode: screen;
+}
+
+.tk-yellow {
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 200, 100, 0.04) 0%,
+    transparent 60%
+  );
+  mix-blend-mode: overlay;
+}
+
+.tk-monitor-litside {
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+  background:
+    radial-gradient(
+      80% 60% at 100% 0%,
+      rgba(255, 165, 80, 0.13) 0%,
+      transparent 55%
+    ),
+    linear-gradient(270deg, rgba(255, 150, 70, 0.08) 0%, transparent 30%);
+  mix-blend-mode: screen;
+}
+
+.tk-monitor-headlight {
+  inset: 0;
+  z-index: 2;
+  border-radius: inherit;
+  background:
+    radial-gradient(
+      80% 60% at 100% 0%,
+      rgba(var(--car-color, 255, 245, 220), 0.22) 0%,
+      transparent 55%
+    ),
+    linear-gradient(
+      270deg,
+      rgba(var(--car-color, 255, 245, 220), 0.12) 0%,
+      transparent 30%
+    );
+  opacity: 0;
+  mix-blend-mode: screen;
+}
+
+.tk-stage-pass .tk-monitor-headlight,
+.tk-stage-pass .tk-glass-headlight-reflect {
+  animation: tk-monitor-flare var(--car-speed, 3s)
+    cubic-bezier(0.45, 0.05, 0.55, 0.95) forwards;
+}
+
+@keyframes tk-monitor-flare {
+  0% {
+    opacity: 0;
+  }
+  25% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 0.55;
+  }
+  75% {
+    opacity: 0.35;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+.tk-dust {
+  width: 100px;
+  height: 60px;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(0, 0, 0, 0.5) 0%,
+    transparent 65%
+  );
+  filter: blur(6px);
+}
+
+.tk-dust-tl {
+  top: 0;
+  left: 0;
+}
+
+.tk-dust-tr {
+  top: 0;
+  right: 0;
+  transform: scaleX(-1);
+}
+
+.tk-row {
+  position: relative;
+  z-index: 3;
+  display: grid;
+  grid-template-columns: 38px 1fr 38px;
+  gap: 12px;
+  align-items: stretch;
+}
+
+.tk-vent {
+  display: grid;
+  grid-template-rows: repeat(22, 1fr);
+  gap: 2px;
+  padding: 6px 8px;
+  border-radius: 2px;
+  background: rgba(0, 0, 0, 0.55);
+  box-shadow:
+    inset 0 1px 0 var(--tk-engrave-hi),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.6),
+    inset 0 0 6px rgba(0, 0, 0, 0.7);
+}
+
+.tk-vent span {
+  border-radius: 1px;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.85), rgba(0, 0, 0, 0.4));
+}
+
+.tk-glass {
+  position: relative;
+  overflow: hidden;
+  aspect-ratio: 4 / 3;
+  border-radius: 22px / 26px;
+  background: #040805;
+  isolation: isolate;
+  box-shadow:
+    inset 0 0 0 2px #050504,
+    inset 0 0 0 4px rgba(20, 18, 14, 0.95),
+    inset 0 0 0 5px rgba(0, 0, 0, 0.95),
+    0 0 0 1px rgba(0, 0, 0, 0.85),
+    0 1px 0 var(--tk-engrave-hi);
+}
+
+.tk-glass-inner {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: inherit;
+}
+
+.tk-glass-content {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+}
+
+.tk-glass-window-reflect,
+.tk-glass-headlight-reflect,
+.tk-screen-static-scanlines,
+.tk-screen-moving-scanner,
+.tk-screen-noise,
+.tk-screen-vignette,
+.tk-screen-glare,
+.tk-screen-flicker,
+.tk-screen-breathe {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.tk-glass-window-reflect,
+.tk-glass-headlight-reflect {
+  top: -2%;
+  right: -2%;
+  left: auto;
+  z-index: 4;
+  width: 55%;
+  height: 50%;
+  filter: blur(14px);
+  transform: rotate(-12deg);
+  mix-blend-mode: screen;
+}
+
+.tk-glass-window-reflect {
+  background: radial-gradient(
+    ellipse 60% 80% at 80% 30%,
+    rgba(255, 175, 100, 0.1) 0%,
+    rgba(255, 150, 80, 0.04) 40%,
+    transparent 75%
+  );
+}
+
+.tk-glass-headlight-reflect {
+  background: radial-gradient(
+    ellipse 60% 80% at 80% 30%,
+    rgba(var(--car-color, 255, 245, 220), 0.18) 0%,
+    rgba(var(--car-color, 255, 245, 220), 0.06) 40%,
+    transparent 75%
+  );
+  opacity: 0;
+}
+
+.tk-screen-static-scanlines {
+  z-index: 6;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent 2px,
+    rgba(0, 0, 0, 0.28) 3px,
+    transparent 4px
+  );
+  mix-blend-mode: multiply;
+}
+
+.tk-screen-moving-scanner {
+  z-index: 7;
+  top: 0;
+  bottom: auto;
+  height: 24%;
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    rgba(120, 255, 120, 0.02) 32%,
+    rgba(180, 255, 180, 0.1) 50%,
+    rgba(120, 255, 120, 0.02) 68%,
+    transparent 100%
+  );
+  opacity: 0;
+  transform: translateY(-140%);
+  animation: tk-screen-scan 12s linear infinite;
+  mix-blend-mode: screen;
+}
+
+@keyframes tk-screen-scan {
+  0% {
+    opacity: 0;
+    transform: translateY(-140%);
+  }
+  8% {
+    opacity: 0.85;
+  }
+  46% {
+    opacity: 0.85;
+    transform: translateY(520%);
+  }
+  52% {
+    opacity: 0;
+    transform: translateY(620%);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(620%);
+  }
+}
+
+.tk-screen-noise {
+  z-index: 8;
+  background-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyBAMAAADsEZWCAAAAGFBMVEUAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAcXooUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAAcSURBVDhPYwgNZRjKgBGEoKQDQzBUgYGBAQYAcL4HIX7iE0MAAAAASUVORK5CYII=");
+  opacity: 0.035;
+  animation: tk-screen-noise 0.24s steps(2, end) infinite;
+}
+
+@keyframes tk-screen-noise {
+  0% {
+    transform: translate(0, 0);
+  }
+  25% {
+    transform: translate(-1%, 1%);
+  }
+  50% {
+    transform: translate(1%, -1%);
+  }
+  75% {
+    transform: translate(1%, 1%);
+  }
+  100% {
+    transform: translate(0, 0);
+  }
+}
+
+.tk-screen-vignette {
+  z-index: 9;
+  border-radius: inherit;
+  box-shadow:
+    inset 0 0 70px 18px rgba(0, 0, 0, 0.85),
+    inset 0 0 220px 70px rgba(0, 0, 0, 0.55);
+}
+
+.tk-screen-glare {
+  z-index: 10;
+  top: -20%;
+  left: -15%;
+  width: 70%;
+  height: 60%;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(255, 255, 255, 0.09) 0%,
+    transparent 60%
+  );
+  filter: blur(8px);
+  transform: rotate(-12deg);
+}
+
+.tk-screen-flicker {
+  z-index: 11;
+  background: rgba(57, 255, 90, 0.035);
+  animation: tk-flicker 5s steps(1, end) infinite;
+  mix-blend-mode: screen;
+}
+
+@keyframes tk-flicker {
+  0%,
+  92%,
+  100% {
+    opacity: 1;
+  }
+  93% {
+    opacity: 0.85;
+  }
+  94% {
+    opacity: 1;
+  }
+  95% {
+    opacity: 0.78;
+  }
+  96% {
+    opacity: 1;
+  }
+}
+
+.tk-screen-breathe {
+  z-index: 5;
+  background: radial-gradient(
+    ellipse at 50% 60%,
+    rgba(57, 255, 90, 0.08) 0%,
+    transparent 50%
+  );
+  animation: tk-breathe 6s ease-in-out infinite;
+  mix-blend-mode: screen;
+}
+
+@keyframes tk-breathe {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 0.85;
+  }
+}
+
+.tk-underglow {
+  position: relative;
+  z-index: 0;
+  height: 0;
+}
+
+.tk-underglow::after {
+  content: "";
+  position: absolute;
+  right: 8%;
+  bottom: -14px;
+  left: 8%;
+  height: 32px;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(57, 255, 90, 0.22) 0%,
+    transparent 70%
+  );
+  filter: blur(8px);
+}
+
+.tk-apron {
+  position: relative;
+  z-index: 3;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 24px;
+  align-items: center;
+  padding: 18px 6px;
+  margin-top: 14px;
+  border-top: 1px solid rgba(0, 0, 0, 0.55);
+  box-shadow: inset 0 1px 0 var(--tk-engrave-hi);
+}
+
+.tk-brand {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.tk-stamp,
+.tk-stamp-sub,
+.tk-toggle-engraved {
+  font-family: "Courier New", courier, monospace;
+  color: var(--tk-engrave);
+  text-shadow:
+    0 1px 0 var(--tk-engrave-hi),
+    0 -1px 0 rgba(0, 0, 0, 0.55);
+}
+
+.tk-stamp {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
+.tk-stamp-sub {
+  font-size: 8px;
+  letter-spacing: 0;
+  color: rgba(140, 130, 120, 0.55);
+}
+
+.tk-toggles {
+  display: flex;
+  gap: 18px;
+}
+
+.tk-toggle {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+}
+
+.tk-toggle-engraved {
+  font-size: 7px;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.tk-toggle-body {
+  position: relative;
+  width: 18px;
+  height: 24px;
+  border: 1px solid rgba(0, 0, 0, 0.85);
+  border-radius: 2px;
+  background: linear-gradient(180deg, #14110d 0%, #050402 100%);
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.06),
+    inset 0 -1px 2px rgba(0, 0, 0, 0.7);
+}
+
+.tk-toggle-lever {
+  position: absolute;
+  bottom: 4px;
+  left: 50%;
+  width: 8px;
+  height: 12px;
+  border-radius: 2px;
+  background: linear-gradient(
+    180deg,
+    var(--tk-plastic-edge) 0%,
+    var(--tk-plastic-lo) 100%
+  );
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    0 1px 1px rgba(0, 0, 0, 0.7);
+  transform: translateX(-50%);
+  transition:
+    bottom 0.15s,
+    transform 0.15s;
+}
+
+.tk-toggle:active .tk-toggle-lever {
+  bottom: 8px;
+}
+
+.tk-toggle-led {
+  display: block;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #1a0e0e;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.7);
+}
+
+.tk-toggle:active .tk-toggle-led {
+  background: var(--tk-phosphor);
+  box-shadow:
+    0 0 6px rgba(57, 255, 90, 0.95),
+    inset 0 0 0 1px rgba(0, 0, 0, 0.4);
+}
+
+@media (max-height: 700px) and (min-width: 769px) {
+  .tk-monitor {
+    width: min(70vw, 780px);
+  }
+
+  .tk-apron {
+    padding: 12px 6px;
+    margin-top: 10px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tk-stage * {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  .tk-carpass,
+  .tk-ped,
+  .tk-motes,
+  .tk-screen-moving-scanner {
+    display: none !important;
+  }
+}

@@ -2,7 +2,7 @@ import type { NextApiResponse } from "next";
 
 export type ChatSseEvent =
   | {
-      type: "partial" | "complete" | "error";
+      type: "partial" | "complete" | "error" | "progress";
       message: string;
       success?: boolean;
       data?: unknown;

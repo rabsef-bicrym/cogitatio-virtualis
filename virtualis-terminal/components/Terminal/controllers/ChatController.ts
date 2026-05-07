@@ -10,7 +10,7 @@ interface ChatControllerConfig {
 }
 
 interface ChatSSEEvent {
-  type?: "partial" | "complete" | "error" | string;
+  type?: "partial" | "complete" | "error" | "progress" | string;
   success?: boolean;
   message?: string;
   data?: {
@@ -320,6 +320,8 @@ export class ChatController extends BaseController {
     } finally {
       this.state.isProcessing = false;
       this.setLoading(false);
+      await waitForTerminalRender();
+      this.focus();
     }
   }
 
@@ -337,6 +339,12 @@ export class ChatController extends BaseController {
     };
 
     switch (type) {
+      case "progress":
+        if (message) {
+          await this.print(sendMessage(processMessage(message), "info"));
+        }
+        break;
+
       case "partial":
         if (message) {
           // Process message to convert \n to actual newlines
@@ -352,6 +360,8 @@ export class ChatController extends BaseController {
             // Process message to convert \n to actual newlines
             await this.print(sendMessage(processMessage(message), "system"));
           }
+          await waitForTerminalRender();
+          this.focus();
           // Optionally call onChatComplete callback
           if (this.config.onChatComplete) {
             this.config.onChatComplete();
