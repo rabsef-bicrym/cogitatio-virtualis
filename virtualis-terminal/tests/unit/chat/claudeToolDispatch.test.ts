@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
-import { dispatchClaudeToolUse } from "@/lib/chat/claudeToolDispatch";
-import type {
-  HardCommandOperations,
-  HardCommandResponse,
-} from "@/lib/chat/hardCommands";
+import {
+  dispatchClaudeToolUse,
+  type ClaudeToolOperations,
+} from "@/lib/chat/claudeToolDispatch";
+import type { HardCommandResponse } from "@/lib/chat/hardCommands";
 import type { ToolUseBlock } from "@/lib/chat/messageCodec";
 import { DocumentType, ProjectSubType, OtherSubType } from "@/types/documents";
 
@@ -23,7 +23,7 @@ function ok(message = "ok"): Promise<HardCommandResponse> {
   return Promise.resolve({ success: true, message });
 }
 
-function operations(): HardCommandOperations {
+function operations(): ClaudeToolOperations {
   return {
     runDocIdCommand: vi.fn(() => ok()),
     runDocsCommand: vi.fn(() => ok()),
@@ -32,6 +32,10 @@ function operations(): HardCommandOperations {
     runSearchCommand: vi.fn(() => ok()),
     runOtherCommand: vi.fn(() => ok()),
     runStatusCommand: vi.fn(() => ok()),
+    runSelfRepoCurrentCommit: vi.fn(() => ok()),
+    runSelfRepoList: vi.fn(() => ok()),
+    runSelfRepoReadFile: vi.fn(() => ok()),
+    runSelfRepoSearch: vi.fn(() => ok()),
   };
 }
 
@@ -103,6 +107,43 @@ describe("dispatchClaudeToolUse", () => {
     await expect(
       dispatchClaudeToolUse(toolUse("unknown_tool"), operations()),
     ).resolves.toBeNull();
+  });
+
+  it("dispatches self repository file reads with line bounds", async () => {
+    const commandOperations = operations();
+
+    await dispatchClaudeToolUse(
+      toolUse("self_repo_read_file", {
+        path: "virtualis-terminal/pages/index.tsx",
+        start_line: 1,
+        end_line: 20,
+      }),
+      commandOperations,
+    );
+
+    expect(commandOperations.runSelfRepoReadFile).toHaveBeenCalledWith({
+      path: "virtualis-terminal/pages/index.tsx",
+      startLine: 1,
+      endLine: 20,
+    });
+  });
+
+  it("dispatches self repository searches without shell command text", async () => {
+    const commandOperations = operations();
+
+    await dispatchClaudeToolUse(
+      toolUse("self_repo_search", {
+        query: "MobileDenial",
+        path_prefix: "virtualis-terminal/components",
+      }),
+      commandOperations,
+    );
+
+    expect(commandOperations.runSelfRepoSearch).toHaveBeenCalledWith({
+      query: "MobileDenial",
+      pathPrefix: "virtualis-terminal/components",
+      limit: undefined,
+    });
   });
 
   it("rejects invalid Claude tool input before command execution", async () => {

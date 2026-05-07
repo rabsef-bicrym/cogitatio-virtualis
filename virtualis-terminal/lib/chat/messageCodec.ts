@@ -97,6 +97,86 @@ export function isPureToolResult(message: ThreadMessage): boolean {
   );
 }
 
+function assistantToolUseIds(message: ThreadMessage): string[] {
+  if (message.role !== "assistant") {
+    return [];
+  }
+
+  return message.content
+    .filter((block): block is ToolUseBlock => block.type === "tool_use")
+    .map((block) => block.id);
+}
+
+function toolResultIds(message: ThreadMessage): string[] {
+  if (!isPureToolResult(message)) {
+    return [];
+  }
+
+  return message.content
+    .filter((block): block is ToolResultBlock => block.type === "tool_result")
+    .map((block) => block.tool_use_id);
+}
+
+function includesEveryId(resultIds: string[], toolUseIds: string[]): boolean {
+  return toolUseIds.every((id) => resultIds.includes(id));
+}
+
+function removeToolUseBlocks(message: ThreadMessage): ThreadMessage | null {
+  const content = message.content.filter((block) => block.type !== "tool_use");
+  if (!content.length) {
+    return null;
+  }
+
+  return { ...message, content };
+}
+
+/**
+ * Reconstructs Claude's required assistant-tool/user-result adjacency before
+ * resending stored thread history to Anthropic.
+ */
+export function normalizeToolResultAdjacency(
+  messages: ThreadMessage[],
+): ThreadMessage[] {
+  const normalized: ThreadMessage[] = [];
+  const used = new Set<number>();
+
+  for (const [index, message] of messages.entries()) {
+    if (used.has(index) || isPureToolResult(message)) {
+      continue;
+    }
+
+    const toolUseIds = assistantToolUseIds(message);
+    if (!toolUseIds.length) {
+      normalized.push(message);
+      used.add(index);
+      continue;
+    }
+
+    const resultIndex = messages.findIndex((candidate, candidateIndex) => {
+      if (candidateIndex === index || used.has(candidateIndex)) {
+        return false;
+      }
+
+      return includesEveryId(toolResultIds(candidate), toolUseIds);
+    });
+
+    if (resultIndex === -1) {
+      const sanitized = removeToolUseBlocks(message);
+      if (sanitized) {
+        normalized.push(sanitized);
+      }
+      used.add(index);
+      continue;
+    }
+
+    normalized.push(message, messages[resultIndex]);
+    used.add(index);
+    used.add(resultIndex);
+  }
+
+  return normalized;
+}
+
 /**
  * Repairs a single text block when Claude emits only one side of the reply tag.
  */

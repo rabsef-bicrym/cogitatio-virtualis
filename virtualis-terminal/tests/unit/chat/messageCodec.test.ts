@@ -3,6 +3,7 @@ import {
   decodeContentBlocks,
   fixContentBlocks,
   isPureToolResult,
+  normalizeToolResultAdjacency,
   parseAssistantReply,
   parseStoredMessage,
   type ThreadMessage,
@@ -48,5 +49,60 @@ describe("messageCodec", () => {
         timestamp: new Date("2026-05-03T00:00:00.000Z"),
       }),
     ).toThrow("Unsupported thread message role: system");
+  });
+
+  it("repairs tool result adjacency when timestamp ties reorder messages", () => {
+    const toolResult: ThreadMessage = {
+      role: "user",
+      timestamp: "2026-05-03T00:00:00.000Z",
+      content: [
+        {
+          type: "tool_result",
+          tool_use_id: "toolu_self",
+          content: '{"success":true}',
+        },
+      ],
+    };
+    const assistantToolUse: ThreadMessage = {
+      role: "assistant",
+      timestamp: "2026-05-03T00:00:00.000Z",
+      content: [
+        {
+          type: "tool_use",
+          id: "toolu_self",
+          name: "self_repo_list_files",
+          input: {},
+        },
+      ],
+    };
+
+    expect(
+      normalizeToolResultAdjacency([toolResult, assistantToolUse]).map(
+        (message) => message.role,
+      ),
+    ).toEqual(["assistant", "user"]);
+  });
+
+  it("drops dangling tool use blocks that cannot be paired", () => {
+    const messages = normalizeToolResultAdjacency([
+      {
+        role: "assistant",
+        timestamp: "2026-05-03T00:00:00.000Z",
+        content: [
+          { type: "text", text: "<reply>...processing...</reply>" },
+          {
+            type: "tool_use",
+            id: "toolu_missing",
+            name: "self_repo_list_files",
+            input: {},
+          },
+        ],
+      },
+    ]);
+
+    expect(messages).toHaveLength(1);
+    expect(messages[0].content).toEqual([
+      { type: "text", text: "<reply>...processing...</reply>" },
+    ]);
   });
 });
