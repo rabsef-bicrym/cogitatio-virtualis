@@ -27,7 +27,6 @@ import {
   sendLine,
   sendMultiLine,
 } from "./utils/printUtils";
-import TerminalFrame from "./TerminalFrame";
 import { RestoredTranscript } from "./RestoredTranscript";
 import { ASCII_ERROR_LINES } from "./config/ascii.config";
 import { DeepPartial } from "@/components/Terminal/utils/deepMerge";
@@ -63,6 +62,7 @@ export const VirtualisTerminal: React.FC<VirtualisTerminalProps> = ({
   const performRecoveryRef = useRef(async (): Promise<void> => {});
   const controllerRef = useRef<Controller | null>(null);
   const clearTerminalRef = useRef(async (): Promise<void> => {});
+  const surfaceRef = useRef<HTMLDivElement>(null);
   const [controller, setController] = useState<Controller | null>(null);
   const [restoredThread, setRestoredThread] = useState<ThreadMessage[]>([]);
 
@@ -365,6 +365,45 @@ export const VirtualisTerminal: React.FC<VirtualisTerminalProps> = ({
   }, [controller]);
 
   useEffect(() => {
+    const surface = surfaceRef.current;
+    if (!surface) return;
+
+    const scrollTerminalToBottom = () => {
+      const scrollContainer = surface.querySelector<HTMLElement>(
+        ".crt-terminal__overflow-container",
+      );
+      if (scrollContainer) {
+        scrollContainer.scrollTop = scrollContainer.scrollHeight;
+      }
+    };
+
+    const scheduleScrollCommandLineIntoView = () => {
+      scrollTerminalToBottom();
+      window.requestAnimationFrame(() => {
+        scrollTerminalToBottom();
+      });
+    };
+
+    const observer = new MutationObserver(scheduleScrollCommandLineIntoView);
+    observer.observe(surface, {
+      characterData: true,
+      childList: true,
+      subtree: true,
+    });
+
+    surface.addEventListener("input", scheduleScrollCommandLineIntoView);
+    surface.addEventListener("keydown", scheduleScrollCommandLineIntoView);
+    surface.addEventListener("keyup", scheduleScrollCommandLineIntoView);
+
+    return () => {
+      observer.disconnect();
+      surface.removeEventListener("input", scheduleScrollCommandLineIntoView);
+      surface.removeEventListener("keydown", scheduleScrollCommandLineIntoView);
+      surface.removeEventListener("keyup", scheduleScrollCommandLineIntoView);
+    };
+  }, []);
+
+  useEffect(() => {
     let mounted = true;
 
     async function mountInitialController() {
@@ -417,20 +456,101 @@ export const VirtualisTerminal: React.FC<VirtualisTerminalProps> = ({
         onPrintStatusChange: handlePrintStatusChange,
       },
       effects: {
-        scanner: config.effects.scanlines,
-        pixels: config.effects.noise,
-        screenEffects: config.effects.flicker,
-        textEffects: config.effects.textAnimations,
+        scanner: false,
+        pixels: false,
+        screenEffects: false,
+        textEffects: false,
       },
     }),
     [eventQueue, handleCommand, handlePrintStatusChange, config],
   );
 
   return (
-    <TerminalFrame className={className} config={config}>
+    <div
+      className={`terminal-surface ${className || ""}`}
+      data-terminal-surface
+      ref={surfaceRef}
+    >
       <CRTTerminal {...terminalProps} />
       <RestoredTranscript thread={restoredThread} />
-    </TerminalFrame>
+      <style jsx>{`
+        .terminal-surface {
+          position: absolute;
+          inset: 0;
+          overflow: hidden;
+          background: ${config.theme.background};
+        }
+
+        :global(.terminal-surface .crt-terminal) {
+          width: 100%;
+          height: 100%;
+          max-height: none;
+          padding: 0.65rem 0.45rem;
+          border: 0;
+          border-radius: 0;
+          background: radial-gradient(
+            80% 80% at 50% 50%,
+            #102210 0%,
+            #061006 58%,
+            #020602 100%
+          );
+          box-shadow: none;
+        }
+
+        :global(.terminal-surface .crt-terminal__overflow-container) {
+          height: 100%;
+          max-height: 100%;
+          border-radius: 0;
+        }
+
+        :global(.terminal-surface .crt-terminal__screen) {
+          position: relative;
+        }
+
+        :global(.terminal-surface .crt-command-line) {
+          display: flex;
+          align-items: flex-start;
+          width: 100%;
+          gap: 0.5ch;
+        }
+
+        :global(.terminal-surface .crt-command-line__prompt) {
+          flex: 0 0 auto;
+        }
+
+        :global(.terminal-surface .crt-command-line__input-wrapper) {
+          display: block;
+          flex: 1 1 auto;
+          min-width: 0;
+        }
+
+        :global(.terminal-surface .crt-command-line__input-string) {
+          display: block;
+          overflow-wrap: anywhere;
+          white-space: normal;
+          word-break: break-word;
+        }
+
+        :global(.terminal-surface .crt-restored-transcript) {
+          display: block;
+        }
+
+        :global(.terminal-surface .crt-restored-line) {
+          min-height: 1.5em;
+          white-space: pre-wrap;
+          overflow-wrap: anywhere;
+          word-break: break-word;
+        }
+
+        :global(.terminal-surface .crt-restored-line.line-spacer) {
+          min-height: 1.5em;
+        }
+
+        :global(.terminal-surface .crt-restored-word) {
+          display: inline;
+        }
+      `}</style>
+    </div>
   );
 };
 

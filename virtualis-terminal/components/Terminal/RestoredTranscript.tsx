@@ -17,7 +17,7 @@ export function RestoredTranscript({ thread }: RestoredTranscriptProps) {
 
   useEffect(() => {
     const screen = document.querySelector<HTMLElement>(
-      ".content-area .crt-screen",
+      "[data-terminal-surface] .crt-screen",
     );
     if (!screen?.parentElement) return;
 

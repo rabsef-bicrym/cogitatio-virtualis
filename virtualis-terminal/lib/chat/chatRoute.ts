@@ -1,5 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { runClaudeToolLoop } from "@/lib/chat/claudeToolLoop";
+import { startAmbientWaitTicker } from "@/lib/chat/ambientWaitTicker";
 import { isRecoverableFailure, type TextBlock } from "@/lib/chat/messageCodec";
 import { createSseWriter, type SseWriter } from "@/lib/chat/sseWriter";
 import {
@@ -57,12 +58,18 @@ async function streamClaudeFallback(
   sessionId: string,
   writer: SseWriter,
 ): Promise<void> {
-  await runClaudeToolLoop({
-    sessionId,
-    onProgress: async (message, eventType) => {
-      writer.send({ type: eventType, message });
-    },
-  });
+  const ambientTicker = startAmbientWaitTicker({ writer });
+
+  try {
+    await runClaudeToolLoop({
+      sessionId,
+      onProgress: async (message, eventType) => {
+        writer.send({ type: eventType, message });
+      },
+    });
+  } finally {
+    ambientTicker.stop();
+  }
 }
 
 async function handleSlashCommand(

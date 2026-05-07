@@ -20,11 +20,13 @@ AI terminal for document exploration, resume navigation, and portfolio chat.
 
 - `components/Terminal/VirtualisTerminal.tsx` orchestrates the terminal
   experience.
-- `components/Terminal/TerminalFrame.tsx` owns the responsive CRT frame and
-  surrounding links.
+- `components/RoomScene/RoomScene.tsx` owns the desktop room, CRT housing, and
+  composed screen effects.
+- `components/MobileDenial/MobileDenial.tsx` owns the intentional mobile
+  replacement surface.
 - Terminal controllers isolate boot, chat, event queue, and state transitions.
-- CSS Modules and global styles provide the CRT scanline, glow, and layout
-  effects.
+- CSS Modules and scoped global styles provide the room, CRT scanline, glow,
+  and layout effects.
 
 ### Chat API
 
