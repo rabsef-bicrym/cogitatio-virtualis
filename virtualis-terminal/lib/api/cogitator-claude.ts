@@ -168,6 +168,55 @@ export class ClaudeAPI {
           properties: {},
         },
       },
+      {
+        name: "self_repo_current_commit",
+        description:
+          "return the current git commit for the deployed Cogitatio Virtualis repository checkout.",
+        input_schema: {
+          type: "object",
+          properties: {},
+        },
+      },
+      {
+        name: "self_repo_list_files",
+        description:
+          "list readable tracked files in the Cogitatio Virtualis repository. Optional prefix narrows to a repo-relative path prefix.",
+        input_schema: {
+          type: "object",
+          properties: {
+            prefix: { type: "string" },
+            limit: { type: "number" },
+          },
+        },
+      },
+      {
+        name: "self_repo_read_file",
+        description:
+          "read a bounded line range from a readable tracked file in the Cogitatio Virtualis repository at HEAD.",
+        input_schema: {
+          type: "object",
+          properties: {
+            path: { type: "string" },
+            start_line: { type: "number" },
+            end_line: { type: "number" },
+          },
+          required: ["path"],
+        },
+      },
+      {
+        name: "self_repo_search",
+        description:
+          "literal-search readable tracked files in the Cogitatio Virtualis repository. Optional path_prefix narrows the search.",
+        input_schema: {
+          type: "object",
+          properties: {
+            query: { type: "string" },
+            path_prefix: { type: "string" },
+            limit: { type: "number" },
+          },
+          required: ["query"],
+        },
+      },
     ];
   }
 

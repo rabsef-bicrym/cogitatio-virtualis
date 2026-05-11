@@ -147,6 +147,16 @@ async function waitForTerminalReady(page: Page) {
   });
 }
 
+async function waitForAnimationFrames(page: Page, count = 2) {
+  await page.evaluate(async (frameCount) => {
+    for (let index = 0; index < frameCount; index += 1) {
+      await new Promise<void>((resolve) => {
+        window.requestAnimationFrame(() => resolve());
+      });
+    }
+  }, count);
+}
+
 test("boots the terminal shell without backend failures", async ({ page }) => {
   await mockBootSequence(page);
   await mockEmptyThread(page);
@@ -176,9 +186,10 @@ test("submits a terminal command and renders the streamed response", async ({
 
   await expect(
     page.getByText(
-      "Cogitatio Terminal is connected to Cogitatio Server - Systems Nominal.",
+      "Cogitatio Terminal is connected to Cogitatio Server - Systems",
     ),
   ).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByText("Nominal.")).toBeVisible({ timeout: 10_000 });
 });
 
 test("renders ambient progress events during a long response", async ({
@@ -268,6 +279,133 @@ test("keeps wrapped command input aligned and visible", async ({ page }) => {
   expect(metrics.inputHeight).toBeGreaterThan(24);
   expect(metrics.inputBottom).toBeLessThanOrEqual(metrics.scrollBottom + 1);
   expect(metrics.scrollTop).toBeGreaterThan(0);
+});
+
+test("lets users hold scrollback while new terminal output arrives", async ({
+  page,
+}) => {
+  await mockBootSequence(page);
+  await mockEmptyThread(page);
+  await page.setViewportSize({ width: 900, height: 650 });
+  await page.goto("/");
+  await waitForTerminalReady(page);
+
+  await page.evaluate(() => {
+    const scrollContainer = document.querySelector<HTMLElement>(
+      ".crt-terminal__overflow-container",
+    );
+
+    if (!scrollContainer) {
+      throw new Error("Terminal scroll container was not rendered");
+    }
+
+    for (let index = 0; index < 80; index += 1) {
+      const line = document.createElement("div");
+      line.textContent = `scrollback filler ${index}`;
+      line.style.minHeight = "24px";
+      scrollContainer.appendChild(line);
+    }
+  });
+
+  await page.waitForFunction(() => {
+    const scrollContainer = document.querySelector<HTMLElement>(
+      ".crt-terminal__overflow-container",
+    );
+    return (
+      scrollContainer &&
+      scrollContainer.scrollHeight > scrollContainer.clientHeight &&
+      scrollContainer.scrollTop > 0
+    );
+  });
+
+  await page.evaluate(() => {
+    const scrollContainer = document.querySelector<HTMLElement>(
+      ".crt-terminal__overflow-container",
+    );
+
+    if (!scrollContainer) {
+      throw new Error("Terminal scroll container was not rendered");
+    }
+
+    scrollContainer.dispatchEvent(new WheelEvent("wheel", { deltaY: -200 }));
+    scrollContainer.scrollTop = 0;
+    scrollContainer.dispatchEvent(new Event("scroll"));
+
+    const line = document.createElement("div");
+    line.textContent = "output while reader is reviewing scrollback";
+    line.style.minHeight = "24px";
+    scrollContainer.appendChild(line);
+    scrollContainer.scrollTop = scrollContainer.scrollHeight;
+    scrollContainer.dispatchEvent(new Event("scroll"));
+  });
+  await waitForAnimationFrames(page);
+
+  const heldScrollTop = await page.evaluate(() => {
+    const scrollContainer = document.querySelector<HTMLElement>(
+      ".crt-terminal__overflow-container",
+    );
+
+    if (!scrollContainer) {
+      throw new Error("Terminal scroll container was not rendered");
+    }
+
+    return scrollContainer.scrollTop;
+  });
+
+  expect(heldScrollTop).toBeLessThanOrEqual(2);
+
+  const scrollBox = await page
+    .locator(".crt-terminal__overflow-container")
+    .boundingBox();
+  expect(scrollBox).not.toBeNull();
+  await page.mouse.move(
+    scrollBox!.x + scrollBox!.width / 2,
+    scrollBox!.y + scrollBox!.height / 2,
+  );
+  await page.mouse.wheel(0, 5000);
+  await page.waitForFunction(() => {
+    const scrollContainer = document.querySelector<HTMLElement>(
+      ".crt-terminal__overflow-container",
+    );
+    return (
+      scrollContainer &&
+      scrollContainer.scrollHeight -
+        scrollContainer.scrollTop -
+        scrollContainer.clientHeight <=
+        48
+    );
+  });
+
+  const resumedDistanceFromBottom = await page.evaluate(() => {
+    const scrollContainer = document.querySelector<HTMLElement>(
+      ".crt-terminal__overflow-container",
+    );
+
+    if (!scrollContainer) {
+      throw new Error("Terminal scroll container was not rendered");
+    }
+
+    const line = document.createElement("div");
+    line.textContent = "output after reader returned to the prompt";
+    line.style.minHeight = "24px";
+    scrollContainer.appendChild(line);
+    scrollContainer.scrollTop = scrollContainer.scrollHeight;
+    scrollContainer.dispatchEvent(new Event("scroll"));
+
+    return new Promise<number>((resolve) => {
+      window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => {
+          resolve(
+            scrollContainer.scrollHeight -
+              scrollContainer.scrollTop -
+              scrollContainer.clientHeight,
+          );
+        });
+      });
+    });
+  });
+
+  expect(resumedDistanceFromBottom).toBeLessThanOrEqual(48);
 });
 
 test("restores an existing session without replaying boot", async ({

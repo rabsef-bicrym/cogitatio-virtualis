@@ -47,6 +47,52 @@ interface MountControllerOptions {
   initialThread?: ThreadMessage[];
 }
 
+const AUTO_SCROLL_BOTTOM_THRESHOLD_PX = 48;
+
+const isScrollTopNearBottom = (
+  element: HTMLElement,
+  scrollTop: number,
+): boolean => {
+  return (
+    element.scrollHeight - scrollTop - element.clientHeight <=
+    AUTO_SCROLL_BOTTOM_THRESHOLD_PX
+  );
+};
+
+const isNearScrollBottom = (element: HTMLElement): boolean => {
+  return isScrollTopNearBottom(element, element.scrollTop);
+};
+
+const HOLD_SCROLL_INTERACTION_WINDOW_MS = 1500;
+
+type ScrollTopAccessor = {
+  get: (this: Element) => number;
+  set: (this: Element, value: number) => void;
+};
+
+const findScrollTopAccessor = (
+  element: HTMLElement,
+): ScrollTopAccessor | null => {
+  let prototype: object | null = Object.getPrototypeOf(element);
+
+  while (prototype) {
+    const descriptor = Object.getOwnPropertyDescriptor(prototype, "scrollTop");
+    if (
+      typeof descriptor?.get === "function" &&
+      typeof descriptor.set === "function"
+    ) {
+      return {
+        get: descriptor.get as ScrollTopAccessor["get"],
+        set: descriptor.set as ScrollTopAccessor["set"],
+      };
+    }
+
+    prototype = Object.getPrototypeOf(prototype);
+  }
+
+  return null;
+};
+
 export const VirtualisTerminal: React.FC<VirtualisTerminalProps> = ({
   className,
   initialConfig,
@@ -63,6 +109,10 @@ export const VirtualisTerminal: React.FC<VirtualisTerminalProps> = ({
   const controllerRef = useRef<Controller | null>(null);
   const clearTerminalRef = useRef(async (): Promise<void> => {});
   const surfaceRef = useRef<HTMLDivElement>(null);
+  const shouldAutoScrollRef = useRef(true);
+  const heldScrollTopRef = useRef(0);
+  const lastUserScrollIntentRef = useRef(0);
+  const allowProgrammaticScrollRef = useRef(false);
   const [controller, setController] = useState<Controller | null>(null);
   const [restoredThread, setRestoredThread] = useState<ThreadMessage[]>([]);
 
@@ -368,38 +418,199 @@ export const VirtualisTerminal: React.FC<VirtualisTerminalProps> = ({
     const surface = surfaceRef.current;
     if (!surface) return;
 
-    const scrollTerminalToBottom = () => {
-      const scrollContainer = surface.querySelector<HTMLElement>(
-        ".crt-terminal__overflow-container",
+    let activeScrollContainer: HTMLElement | null = null;
+    let restoreScrollTopGuard: (() => void) | null = null;
+
+    const markUserScrollIntent = () => {
+      lastUserScrollIntentRef.current = window.performance.now();
+    };
+
+    const hadRecentUserScrollIntent = () => {
+      return (
+        window.performance.now() - lastUserScrollIntentRef.current <=
+        HOLD_SCROLL_INTERACTION_WINDOW_MS
       );
-      if (scrollContainer) {
-        scrollContainer.scrollTop = scrollContainer.scrollHeight;
+    };
+
+    const withProgrammaticScroll = (operation: () => void) => {
+      allowProgrammaticScrollRef.current = true;
+      try {
+        operation();
+      } finally {
+        allowProgrammaticScrollRef.current = false;
       }
     };
 
-    const scheduleScrollCommandLineIntoView = () => {
-      scrollTerminalToBottom();
-      window.requestAnimationFrame(() => {
-        scrollTerminalToBottom();
+    const installScrollTopGuard = (scrollContainer: HTMLElement) => {
+      const accessor = findScrollTopAccessor(scrollContainer);
+      if (!accessor) {
+        return null;
+      }
+
+      Object.defineProperty(scrollContainer, "scrollTop", {
+        configurable: true,
+        get() {
+          return accessor.get.call(scrollContainer);
+        },
+        set(nextScrollTop: number) {
+          const wantsBottom = isScrollTopNearBottom(
+            scrollContainer,
+            nextScrollTop,
+          );
+
+          if (
+            !allowProgrammaticScrollRef.current &&
+            !shouldAutoScrollRef.current &&
+            wantsBottom
+          ) {
+            accessor.set.call(scrollContainer, heldScrollTopRef.current);
+            return;
+          }
+
+          accessor.set.call(scrollContainer, nextScrollTop);
+        },
+      });
+
+      return () => {
+        Reflect.deleteProperty(scrollContainer, "scrollTop");
+      };
+    };
+
+    const attachScrollListeners = (scrollContainer: HTMLElement) => {
+      scrollContainer.addEventListener("scroll", updateAutoScrollState, {
+        passive: true,
+      });
+      scrollContainer.addEventListener("wheel", markUserScrollIntent, {
+        passive: true,
+      });
+      scrollContainer.addEventListener("touchmove", markUserScrollIntent, {
+        passive: true,
+      });
+      scrollContainer.addEventListener("pointerdown", markUserScrollIntent, {
+        passive: true,
       });
     };
 
-    const observer = new MutationObserver(scheduleScrollCommandLineIntoView);
+    const detachScrollListeners = (scrollContainer: HTMLElement) => {
+      scrollContainer.removeEventListener("scroll", updateAutoScrollState);
+      scrollContainer.removeEventListener("wheel", markUserScrollIntent);
+      scrollContainer.removeEventListener("touchmove", markUserScrollIntent);
+      scrollContainer.removeEventListener("pointerdown", markUserScrollIntent);
+    };
+
+    const updateAutoScrollState = () => {
+      if (!activeScrollContainer) return;
+
+      if (!hadRecentUserScrollIntent()) {
+        return;
+      }
+
+      shouldAutoScrollRef.current = isNearScrollBottom(activeScrollContainer);
+      if (!shouldAutoScrollRef.current) {
+        heldScrollTopRef.current = activeScrollContainer.scrollTop;
+      }
+    };
+
+    const resolveScrollContainer = () => {
+      const scrollContainer = surface.querySelector<HTMLElement>(
+        ".crt-terminal__overflow-container",
+      );
+
+      if (scrollContainer === activeScrollContainer) {
+        return activeScrollContainer;
+      }
+
+      if (activeScrollContainer) {
+        detachScrollListeners(activeScrollContainer);
+      }
+      restoreScrollTopGuard?.();
+      activeScrollContainer = scrollContainer;
+      if (activeScrollContainer) {
+        attachScrollListeners(activeScrollContainer);
+        restoreScrollTopGuard = installScrollTopGuard(activeScrollContainer);
+      }
+
+      return activeScrollContainer;
+    };
+
+    const scrollTerminalToBottom = () => {
+      const scrollContainer = resolveScrollContainer();
+      if (scrollContainer) {
+        withProgrammaticScroll(() => {
+          scrollContainer.scrollTop = scrollContainer.scrollHeight;
+        });
+      }
+    };
+
+    const preserveHeldScrollPosition = () => {
+      const scrollContainer = resolveScrollContainer();
+      if (!scrollContainer) return;
+
+      withProgrammaticScroll(() => {
+        scrollContainer.scrollTop = heldScrollTopRef.current;
+      });
+      window.requestAnimationFrame(() => {
+        if (!shouldAutoScrollRef.current) {
+          withProgrammaticScroll(() => {
+            scrollContainer.scrollTop = heldScrollTopRef.current;
+          });
+        }
+      });
+    };
+
+    const scheduleScrollCommandLineIntoView = (force = false) => {
+      if (force) {
+        shouldAutoScrollRef.current = true;
+      }
+
+      if (!shouldAutoScrollRef.current) {
+        preserveHeldScrollPosition();
+        return;
+      }
+
+      scrollTerminalToBottom();
+      window.requestAnimationFrame(() => {
+        if (shouldAutoScrollRef.current) {
+          scrollTerminalToBottom();
+        }
+      });
+    };
+
+    const forceScrollFromCommandInput = (event: Event) => {
+      const target = event.target;
+      const isCommandInput =
+        target instanceof Element &&
+        Boolean(target.closest(".crt-command-line__input"));
+
+      if (isCommandInput) {
+        scheduleScrollCommandLineIntoView(true);
+      }
+    };
+
+    const observer = new MutationObserver(() => {
+      scheduleScrollCommandLineIntoView();
+    });
     observer.observe(surface, {
       characterData: true,
       childList: true,
       subtree: true,
     });
 
-    surface.addEventListener("input", scheduleScrollCommandLineIntoView);
-    surface.addEventListener("keydown", scheduleScrollCommandLineIntoView);
-    surface.addEventListener("keyup", scheduleScrollCommandLineIntoView);
+    resolveScrollContainer();
+    scheduleScrollCommandLineIntoView(true);
 
+    surface.addEventListener("input", forceScrollFromCommandInput);
+    surface.addEventListener("keydown", forceScrollFromCommandInput);
+    surface.addEventListener("keyup", forceScrollFromCommandInput);
     return () => {
       observer.disconnect();
-      surface.removeEventListener("input", scheduleScrollCommandLineIntoView);
-      surface.removeEventListener("keydown", scheduleScrollCommandLineIntoView);
-      surface.removeEventListener("keyup", scheduleScrollCommandLineIntoView);
+      if (activeScrollContainer) {
+        detachScrollListeners(activeScrollContainer);
+      }
+      restoreScrollTopGuard?.();
+      surface.removeEventListener("input", forceScrollFromCommandInput);
+      surface.removeEventListener("keydown", forceScrollFromCommandInput);
+      surface.removeEventListener("keyup", forceScrollFromCommandInput);
     };
   }, []);
 

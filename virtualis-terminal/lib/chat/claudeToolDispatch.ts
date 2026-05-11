@@ -4,6 +4,7 @@ import {
   type HardCommandOperations,
   type HardCommandResponse,
 } from "@/lib/chat/hardCommands";
+import { selfRepoReader } from "@/lib/api/selfRepo";
 import type { ToolUseBlock } from "@/lib/chat/messageCodec";
 import { DocumentType, OtherSubType, ProjectSubType } from "@/types/documents";
 
@@ -56,6 +57,56 @@ const searchInput = z.object({
   query: z.string().min(1),
 });
 
+const selfRepoListInput = z.object({
+  prefix: z.string().min(1).optional(),
+  limit: z.number().int().positive().optional(),
+});
+
+const selfRepoReadInput = z.object({
+  path: z.string().min(1),
+  start_line: z.number().int().positive().optional(),
+  end_line: z.number().int().positive().optional(),
+});
+
+const selfRepoSearchInput = z.object({
+  query: z.string().min(1),
+  path_prefix: z.string().min(1).optional(),
+  limit: z.number().int().positive().optional(),
+});
+
+export interface ClaudeToolOperations extends HardCommandOperations {
+  runSelfRepoCurrentCommit(): Promise<HardCommandResponse>;
+  runSelfRepoList(input: {
+    prefix?: string;
+    limit?: number;
+  }): Promise<HardCommandResponse>;
+  runSelfRepoReadFile(input: {
+    path: string;
+    startLine?: number;
+    endLine?: number;
+  }): Promise<HardCommandResponse>;
+  runSelfRepoSearch(input: {
+    query: string;
+    pathPrefix?: string;
+    limit?: number;
+  }): Promise<HardCommandResponse>;
+}
+
+export const claudeToolOperations: ClaudeToolOperations = {
+  ...hardCommandOperations,
+  async runSelfRepoCurrentCommit() {
+    const commit = await selfRepoReader.currentCommit();
+    return {
+      success: true,
+      message: `Self repository HEAD is ${commit}.`,
+      data: { commit },
+    };
+  },
+  runSelfRepoList: (input) => selfRepoReader.listFiles(input),
+  runSelfRepoReadFile: (input) => selfRepoReader.readFile(input),
+  runSelfRepoSearch: (input) => selfRepoReader.search(input),
+};
+
 function invalidToolInput(toolUse: ToolUseBlock, error: unknown): never {
   if (error instanceof z.ZodError) {
     const issueSummary = error.issues
@@ -72,7 +123,7 @@ function invalidToolInput(toolUse: ToolUseBlock, error: unknown): never {
  */
 export async function dispatchClaudeToolUse(
   toolUse: ToolUseBlock,
-  operations: HardCommandOperations = hardCommandOperations,
+  operations: ClaudeToolOperations = claudeToolOperations,
 ): Promise<HardCommandResponse | null> {
   try {
     switch (toolUse.name) {
@@ -119,6 +170,32 @@ export async function dispatchClaudeToolUse(
 
       case "status_command":
         return await operations.runStatusCommand();
+
+      case "self_repo_current_commit":
+        return await operations.runSelfRepoCurrentCommit();
+
+      case "self_repo_list_files": {
+        const input = selfRepoListInput.parse(toolUse.input);
+        return await operations.runSelfRepoList(input);
+      }
+
+      case "self_repo_read_file": {
+        const input = selfRepoReadInput.parse(toolUse.input);
+        return await operations.runSelfRepoReadFile({
+          path: input.path,
+          startLine: input.start_line,
+          endLine: input.end_line,
+        });
+      }
+
+      case "self_repo_search": {
+        const input = selfRepoSearchInput.parse(toolUse.input);
+        return await operations.runSelfRepoSearch({
+          query: input.query,
+          pathPrefix: input.path_prefix,
+          limit: input.limit,
+        });
+      }
 
       default:
         return null;
