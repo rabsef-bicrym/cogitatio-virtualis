@@ -10,6 +10,7 @@ export default function Document() {
           name="description"
           content="Cogitation Terminal - Neural Interface for Legal Knowledge"
         />
+        <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
         <link rel="icon" href="/favicon.ico" />
       </Head>
       <body>

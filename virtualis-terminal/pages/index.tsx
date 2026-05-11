@@ -62,7 +62,6 @@ export default function Home() {
           name="description"
           content="Neural Interface for Legal Knowledge"
         />
-        <link rel="icon" href="/favicon.ico" />
       </Head>
 
       <main className="home-shell">
