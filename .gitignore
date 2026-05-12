@@ -188,5 +188,7 @@ ipython_config.py
 firstconversation.md
 
 # Admin folder - local deployment configs, secrets, etc.
-/admin/
+/admin/*
+!/admin/deploy-production.sh
+!/admin/lightsail.md
 .worktrees/

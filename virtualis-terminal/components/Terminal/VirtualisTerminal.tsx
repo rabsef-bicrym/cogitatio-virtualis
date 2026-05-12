@@ -30,7 +30,7 @@ import {
 import { RestoredTranscript } from "./RestoredTranscript";
 import { ASCII_ERROR_LINES } from "./config/ascii.config";
 import { DeepPartial } from "@/components/Terminal/utils/deepMerge";
-import { stripTrailingLoaderFrame } from "@/components/Terminal/utils/commandSanitizer";
+import { stripLeakedLoaderFrame } from "@/components/Terminal/utils/commandSanitizer";
 import type { ThreadMessage } from "@/lib/chat/messageCodec";
 
 export interface VirtualisTerminalProps {
@@ -389,7 +389,7 @@ export const VirtualisTerminal: React.FC<VirtualisTerminalProps> = ({
       if (terminalState.mode !== "NORMAL" || !controller?.handleCommand) return;
 
       try {
-        const sanitizedCommand = stripTrailingLoaderFrame(
+        const sanitizedCommand = stripLeakedLoaderFrame(
           command,
           config.loader.slides,
         );
