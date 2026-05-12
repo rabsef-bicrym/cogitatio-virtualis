@@ -104,4 +104,4 @@ jobs:
           ssh -i ~/.ssh/lightsail_cd \
             -o IdentitiesOnly=yes \
             "$LIGHTSAIL_USER@$LIGHTSAIL_HOST" \
-            "set -e; cd /home/ubuntu/cogitatio-virtualis && git fetch origin master && git checkout master && git pull --ff-only origin master && bash admin/deploy-production.sh $GIT_SHA"
+            "set -e; cd /home/ubuntu/cogitatio-virtualis && if [ ! -x admin/deploy-production.sh ]; then git fetch origin master && git checkout master && git pull --ff-only origin master; fi && bash admin/deploy-production.sh $GIT_SHA"
