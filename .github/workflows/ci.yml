@@ -75,3 +75,33 @@ jobs:
 
       - name: Build backend package
         run: python -m build
+
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    needs:
+      - frontend
+      - backend
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    environment: production
+    concurrency:
+      group: production
+      cancel-in-progress: false
+    steps:
+      - name: Prepare SSH key
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "${{ secrets.LIGHTSAIL_SSH_KEY }}" > ~/.ssh/lightsail_cd
+          chmod 600 ~/.ssh/lightsail_cd
+          printf '%s\n' "${{ secrets.LIGHTSAIL_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+
+      - name: Deploy production
+        env:
+          LIGHTSAIL_HOST: ${{ secrets.LIGHTSAIL_HOST }}
+          LIGHTSAIL_USER: ${{ secrets.LIGHTSAIL_USER }}
+          GIT_SHA: ${{ github.sha }}
+        run: |
+          ssh -i ~/.ssh/lightsail_cd \
+            -o IdentitiesOnly=yes \
+            "$LIGHTSAIL_USER@$LIGHTSAIL_HOST" \
+            "set -e; cd /home/ubuntu/cogitatio-virtualis && git fetch origin master && git checkout master && git pull --ff-only origin master && bash admin/deploy-production.sh $GIT_SHA"

@@ -1,7 +1,7 @@
 /**
- * Removes a leaked crt-terminal loader frame from the end of a submitted command.
+ * Removes leaked crt-terminal loader frames from a submitted command.
  */
-export function stripTrailingLoaderFrame(
+export function stripLeakedLoaderFrame(
   command: string,
   loaderFrames: readonly string[],
 ): string {
@@ -13,17 +13,27 @@ export function stripTrailingLoaderFrame(
   const frames = [...new Set(loaderFrames.filter(Boolean))].sort(
     (a, b) => b.length - a.length,
   );
-  const leakedFrame = frames.find(
-    (frame) => trimmedCommand.endsWith(frame) && trimmedCommand !== frame,
+  const leadingFrame = frames.find(
+    (frame) => trimmedCommand.startsWith(frame) && trimmedCommand !== frame,
   );
+  const withoutLeadingFrame = leadingFrame
+    ? trimmedCommand.slice(leadingFrame.length).trimStart()
+    : trimmedCommand;
 
-  if (!leakedFrame) {
-    return trimmedCommand;
-  }
+  const trailingFrame = frames.find(
+    (frame) =>
+      withoutLeadingFrame.endsWith(frame) && withoutLeadingFrame !== frame,
+  );
+  const withoutTrailingFrame = trailingFrame
+    ? withoutLeadingFrame.slice(0, -trailingFrame.length).trimEnd()
+    : withoutLeadingFrame;
 
-  const commandWithoutFrame = trimmedCommand
-    .slice(0, -leakedFrame.length)
-    .trimEnd();
+  return withoutTrailingFrame || trimmedCommand;
+}
 
-  return commandWithoutFrame || trimmedCommand;
+export function stripTrailingLoaderFrame(
+  command: string,
+  loaderFrames: readonly string[],
+): string {
+  return stripLeakedLoaderFrame(command, loaderFrames);
 }
