@@ -86,16 +86,29 @@ function Vent() {
 export function RoomScene({ children }: RoomSceneProps) {
   const carEvent = useCarPasses();
   const pedEvent = usePedestrianPasses();
-  const stageStyle = carEvent
-    ? ({
-        "--car-speed": `${carEvent.speed}s`,
-        "--car-color": carEvent.color,
-      } as CSSProperties)
-    : undefined;
+  const stageStyle =
+    carEvent || pedEvent
+      ? ({
+          ...(carEvent
+            ? {
+                "--car-speed": `${carEvent.speed}s`,
+                "--car-color": carEvent.color,
+              }
+            : {}),
+          ...(pedEvent
+            ? {
+                "--ped-speed": `${pedEvent.speed}s`,
+                "--ped-scale": pedEvent.scale,
+              }
+            : {}),
+        } as CSSProperties)
+      : undefined;
 
   return (
     <section
-      className={`tk-stage ${carEvent ? "tk-stage-pass" : ""}`}
+      className={`tk-stage ${carEvent ? "tk-stage-pass" : ""} ${
+        pedEvent ? "tk-stage-walk" : ""
+      }`}
       style={stageStyle}
       aria-label="Cogitatio Virtualis terminal room"
     >
@@ -104,6 +117,12 @@ export function RoomScene({ children }: RoomSceneProps) {
         <div className="tk-streetlight" />
         <div className="tk-blinds-perspective">
           <div className="tk-blinds" />
+          {carEvent ? (
+            <div
+              key={carEvent.id}
+              className={`tk-blinds-carlight tk-blinds-carlight-${carEvent.dir}`}
+            />
+          ) : null}
         </div>
         <div className="tk-floor" />
         {carEvent ? (
@@ -118,12 +137,6 @@ export function RoomScene({ children }: RoomSceneProps) {
             className={`tk-ped tk-ped-${pedEvent.dir} ${
               pedEvent.isCouple ? "tk-ped-couple" : ""
             }`}
-            style={
-              {
-                "--ped-speed": `${pedEvent.speed}s`,
-                "--ped-scale": pedEvent.scale,
-              } as CSSProperties
-            }
           >
             <PedestrianSilhouette
               figNum={pedEvent.figA}
@@ -137,6 +150,7 @@ export function RoomScene({ children }: RoomSceneProps) {
             ) : null}
           </div>
         ) : null}
+        <div className="tk-screen-spill" />
         <div className="tk-progressive-blur" aria-hidden="true">
           <div />
           <div />

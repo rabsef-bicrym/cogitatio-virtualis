@@ -207,6 +207,27 @@
   );
 }
 
+/* The tube is the brightest thing in the room: phosphor halo on the wall
+   around the monitor, breathing with the screen. */
+.tk-screen-spill {
+  position: absolute;
+  top: 8%;
+  right: 4%;
+  bottom: 12%;
+  left: 4%;
+  z-index: 0;
+  background: radial-gradient(
+    58% 52% at 50% 52%,
+    rgba(57, 255, 90, 0.17) 0%,
+    rgba(57, 255, 90, 0.07) 45%,
+    transparent 72%
+  );
+  filter: blur(24px);
+  mix-blend-mode: screen;
+  opacity: 0.65;
+  animation: tk-breathe 6s ease-in-out infinite;
+}
+
 .tk-motes {
   position: absolute;
   inset: 0;
@@ -214,6 +235,19 @@
   overflow: hidden;
   pointer-events: none;
   mix-blend-mode: screen;
+  /* dust only reads where light catches it: confine to the streetlight shaft */
+  mask-image: radial-gradient(
+    72% 88% at 100% 30%,
+    #000 18%,
+    rgba(0, 0, 0, 0.3) 55%,
+    transparent 78%
+  );
+  -webkit-mask-image: radial-gradient(
+    72% 88% at 100% 30%,
+    #000 18%,
+    rgba(0, 0, 0, 0.3) 55%,
+    transparent 78%
+  );
 }
 
 .tk-motes span {
@@ -287,15 +321,15 @@
     opacity: 0;
   }
   25% {
-    opacity: 0.85;
+    opacity: 0.5;
   }
   50% {
     top: -25%;
     left: -15%;
-    opacity: 1;
+    opacity: 0.62;
   }
   75% {
-    opacity: 0.7;
+    opacity: 0.42;
   }
   100% {
     top: 0%;
@@ -311,15 +345,15 @@
     opacity: 0;
   }
   25% {
-    opacity: 0.85;
+    opacity: 0.5;
   }
   50% {
     top: -25%;
     left: -15%;
-    opacity: 1;
+    opacity: 0.62;
   }
   75% {
-    opacity: 0.7;
+    opacity: 0.42;
   }
   100% {
     top: -50%;
@@ -328,8 +362,127 @@
   }
 }
 
+/* The car's headlights project their own slat pattern: bright bars that
+   sweep across the wall while the streetlight's static shadows stay put.
+   Lives inside .tk-blinds-perspective so it inherits the same projection. */
+.tk-blinds-carlight {
+  position: absolute;
+  inset: -12%;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    179deg,
+    rgba(var(--car-color, 255, 245, 220), 0) 0,
+    rgba(var(--car-color, 255, 245, 220), 0.3) 4px,
+    rgba(var(--car-color, 255, 245, 220), 0.3) 10px,
+    rgba(var(--car-color, 255, 245, 220), 0) 14px,
+    rgba(var(--car-color, 255, 245, 220), 0) 28px
+  );
+  mask-image: radial-gradient(85% 85% at 100% 50%, #000 25%, transparent 80%);
+  -webkit-mask-image: radial-gradient(
+    85% 85% at 100% 50%,
+    #000 25%,
+    transparent 80%
+  );
+  mix-blend-mode: screen;
+  opacity: 0;
+  animation: var(--carlight-anim, tk-carlight-ltr) var(--car-speed, 3s)
+    cubic-bezier(0.45, 0.05, 0.55, 0.95) forwards;
+  will-change: transform, opacity;
+}
+
+.tk-blinds-carlight-ltr {
+  --carlight-anim: tk-carlight-ltr;
+}
+
+.tk-blinds-carlight-rtl {
+  --carlight-anim: tk-carlight-rtl;
+}
+
+@keyframes tk-carlight-ltr {
+  0% {
+    opacity: 0;
+    transform: rotate(-2deg) translate(-34px, 48px) skewY(3.5deg);
+  }
+  25% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 0.68;
+    transform: rotate(-2deg) translate(0, -6px) skewY(0deg);
+  }
+  75% {
+    opacity: 0.38;
+  }
+  100% {
+    opacity: 0;
+    transform: rotate(-2deg) translate(34px, -60px) skewY(-3.5deg);
+  }
+}
+
+@keyframes tk-carlight-rtl {
+  0% {
+    opacity: 0;
+    transform: rotate(-2deg) translate(34px, -60px) skewY(-3.5deg);
+  }
+  25% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 0.68;
+    transform: rotate(-2deg) translate(0, -6px) skewY(0deg);
+  }
+  75% {
+    opacity: 0.38;
+  }
+  100% {
+    opacity: 0;
+    transform: rotate(-2deg) translate(-34px, 48px) skewY(3.5deg);
+  }
+}
+
+/* A walker briefly blocks the streetlight mid-stride. Declared before the
+   car-pass rule so headlights win when both events overlap. */
+.tk-stage-walk .tk-streetlight {
+  animation: tk-streetlight-shadowed var(--ped-speed, 7s) ease-in-out forwards;
+}
+
+@keyframes tk-streetlight-shadowed {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  40%,
+  60% {
+    opacity: 0.82;
+  }
+}
+
 .tk-stage-pass .tk-streetlight {
   animation: tk-streetlight-dim var(--car-speed, 3s) ease-in-out forwards;
+}
+
+/* Headlights swamp the streetlight's pattern mid-pass: its shadows lose
+   contrast while the car's bars dominate, then snap back as the car exits. */
+.tk-stage-pass .tk-blinds {
+  animation: tk-blinds-recede var(--car-speed, 3s) ease-in-out forwards;
+}
+
+@keyframes tk-blinds-recede {
+  0% {
+    opacity: 0.55;
+  }
+  28% {
+    opacity: 0.14;
+  }
+  72% {
+    opacity: 0.12;
+  }
+  90% {
+    opacity: 0.48;
+  }
+  100% {
+    opacity: 0.55;
+  }
 }
 
 @keyframes tk-streetlight-dim {
@@ -442,6 +595,30 @@
   }
   50% {
     transform: translateY(-6px);
+  }
+}
+
+/* The streetlight-cast silhouette also washes out while headlights flood
+   the wall, mirroring tk-blinds-recede. */
+.tk-stage-pass .tk-ped-figure::before {
+  animation: tk-ped-swamped var(--car-speed, 3s) ease-in-out forwards;
+}
+
+@keyframes tk-ped-swamped {
+  0% {
+    opacity: 0.85;
+  }
+  28% {
+    opacity: 0.12;
+  }
+  72% {
+    opacity: 0.1;
+  }
+  90% {
+    opacity: 0.75;
+  }
+  100% {
+    opacity: 0.85;
   }
 }
 
@@ -990,6 +1167,12 @@
   .tk-ped,
   .tk-motes,
   .tk-screen-moving-scanner {
+    display: none !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tk-blinds-carlight {
     display: none !important;
   }
 }
