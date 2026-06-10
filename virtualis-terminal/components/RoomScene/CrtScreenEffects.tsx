@@ -27,6 +27,11 @@ export function CrtScreenEffects({ carColor }: CrtScreenEffectsProps) {
       <div className="tk-screen-glare" aria-hidden="true" />
       <div className="tk-screen-flicker" aria-hidden="true" />
       <div className="tk-screen-breathe" aria-hidden="true" />
+      <div className="tk-screen-poweron" aria-hidden="true">
+        <div className="tk-poweron-shutters" />
+        <div className="tk-poweron-line" />
+        <div className="tk-poweron-bloom" />
+      </div>
     </>
   );
 }

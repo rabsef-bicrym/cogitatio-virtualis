@@ -3,15 +3,21 @@
 /* Root Variables */
 :root {
   /* Core colors */
-  --background: #0a0a0a;
+  --background: #040604;
 
-  /* Terminal greens */
-  --terminal-green: #00ff00;
-  --terminal-green-dim: rgba(0, 255, 0, 0.5);
-  --terminal-green-faint: rgba(0, 255, 0, 0.1);
-  --terminal-green-bright: #00ff00;
-  --terminal-green-mid: #00cc00;
-  --terminal-green-dark: #009900;
+  /* Terminal greens — phosphor family shared with the room scene tube
+     (see --tk-phosphor in RoomScene.css) */
+  --terminal-green: #41ff6e;
+  --terminal-green-dim: rgba(65, 255, 110, 0.55);
+  --terminal-green-faint: rgba(65, 255, 110, 0.14);
+  --terminal-green-bright: #7bffa0;
+  --terminal-green-mid: #35e75f;
+  --terminal-green-dark: #23c248;
+
+  /* CRT text rendering: sub-pixel chromatic fringe + phosphor bloom */
+  --crt-fringe:
+    0.6px 0 rgba(255, 90, 70, 0.22), -0.6px 0 rgba(70, 150, 255, 0.18);
+  --crt-bloom: 0 0 6px rgba(65, 255, 110, 0.3);
 
   /* Error reds */
   --terminal-red: #ff5555;
@@ -81,7 +87,10 @@ body {
 }
 
 .message-assistant {
-  text-shadow: 0 0 8px var(--terminal-green-dark);
+  color: var(--terminal-green);
+  text-shadow:
+    var(--crt-fringe),
+    0 0 8px var(--terminal-green-faint);
 }
 
 /* Line Type Styles */
@@ -102,8 +111,11 @@ body {
 }
 
 .line-assistant {
-  color: var(--terminal-green-dark);
-  opacity: 0.85;
+  color: var(--terminal-green);
+  opacity: 0.92;
+  text-shadow:
+    var(--crt-fringe),
+    0 0 8px var(--terminal-green-faint);
 }
 
 /* Text Style Modifiers */
@@ -353,7 +365,7 @@ body {
   }
   100% {
     opacity: 1;
-    filter: blur(2px);
+    filter: blur(0.4px);
     color: var(--terminal-green-bright);
     text-shadow:
       0 0 7px var(--terminal-green-dim),

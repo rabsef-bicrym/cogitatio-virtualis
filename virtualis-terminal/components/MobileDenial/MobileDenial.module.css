@@ -59,8 +59,8 @@
   flex-direction: column;
   gap: 24px;
   text-shadow:
-    0 0 6px rgba(0, 255, 0, 0.42),
-    0 0 18px rgba(0, 255, 0, 0.18);
+    0 0 6px rgba(65, 255, 110, 0.42),
+    0 0 18px rgba(65, 255, 110, 0.18);
 }
 
 .logoFrame {
