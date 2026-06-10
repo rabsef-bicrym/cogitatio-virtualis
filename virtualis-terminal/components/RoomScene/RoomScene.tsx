@@ -12,27 +12,34 @@ interface PedestrianSilhouetteProps {
   flip: boolean;
 }
 
-function actionFor(label: string): void {
-  switch (label) {
-    case "RESUME":
+const TOGGLES: { label: string; activate: () => void }[] = [
+  {
+    label: "RESUME",
+    activate: () => {
       window.open("/resume", "_blank", "popup,width=800,height=600");
-      break;
-    case "GITHUB":
+    },
+  },
+  {
+    label: "GITHUB",
+    activate: () => {
       window.open(
         "https://github.com/rabsef-bicrym/cogitatio-virtualis",
         "_blank",
         "noopener",
       );
-      break;
-    case "CONTACT":
+    },
+  },
+  {
+    label: "CONTACT",
+    activate: () => {
       window.location.href =
         "mailto:eric.helal@icloud.com?subject=" +
         encodeURIComponent(
           "Ref Cog.Vit: Hi Eric - Are you available for an interview?",
         );
-      break;
-  }
-}
+    },
+  },
+];
 
 function PedestrianSilhouette({ figNum, flip }: PedestrianSilhouetteProps) {
   const src = `/room/ped-${String(figNum).padStart(2, "0")}.png`;
@@ -45,19 +52,31 @@ function PedestrianSilhouette({ figNum, flip }: PedestrianSilhouetteProps) {
   );
 }
 
-function Toggle({ label }: { label: string }) {
+function Toggle({
+  label,
+  onActivate,
+}: {
+  label: string;
+  onActivate: () => void;
+}) {
   return (
-    <button
-      className="tk-toggle"
-      type="button"
-      onClick={() => actionFor(label)}
-    >
+    <button className="tk-toggle" type="button" onClick={onActivate}>
       <span className="tk-toggle-engraved">{label}</span>
       <span className="tk-toggle-body" aria-hidden="true">
         <span className="tk-toggle-lever" />
       </span>
       <span className="tk-toggle-led" aria-hidden="true" />
     </button>
+  );
+}
+
+function Vent() {
+  return (
+    <div className="tk-vent" aria-hidden="true">
+      {Array.from({ length: 22 }).map((_, index) => (
+        <span key={index} />
+      ))}
+    </div>
   );
 }
 
@@ -76,9 +95,7 @@ export function RoomScene({ children }: RoomSceneProps) {
 
   return (
     <section
-      className={`tk-stage tk-nocturne ${carEvent ? "tk-stage-pass" : ""} ${
-        pedEvent ? "tk-stage-ped" : ""
-      }`}
+      className={`tk-stage ${carEvent ? "tk-stage-pass" : ""}`}
       style={stageStyle}
       aria-label="Cogitatio Virtualis terminal room"
     >
@@ -93,12 +110,6 @@ export function RoomScene({ children }: RoomSceneProps) {
           <div
             key={carEvent.id}
             className={`tk-carpass tk-carpass-${carEvent.dir}`}
-            style={
-              {
-                "--car-color": carEvent.color,
-                "--car-speed": `${carEvent.speed}s`,
-              } as CSSProperties
-            }
           />
         ) : null}
         {pedEvent ? (
@@ -156,33 +167,19 @@ export function RoomScene({ children }: RoomSceneProps) {
         <div className="tk-highlight" aria-hidden="true" />
         <div className="tk-yellow" aria-hidden="true" />
         <div className="tk-monitor-litside" aria-hidden="true" />
-        <div
-          className="tk-monitor-headlight"
-          aria-hidden="true"
-          style={
-            carEvent ? ({ "--car-color": carEvent.color } as CSSProperties) : {}
-          }
-        />
+        <div className="tk-monitor-headlight" aria-hidden="true" />
         <div className="tk-dust tk-dust-tl" aria-hidden="true" />
         <div className="tk-dust tk-dust-tr" aria-hidden="true" />
 
         <div className="tk-row">
-          <div className="tk-vent" aria-hidden="true">
-            {Array.from({ length: 22 }).map((_, index) => (
-              <span key={index} />
-            ))}
-          </div>
+          <Vent />
           <div className="tk-glass">
             <div className="tk-glass-inner">
               <div className="tk-glass-content">{children}</div>
-              <CrtScreenEffects carColor={carEvent?.color} />
+              <CrtScreenEffects />
             </div>
           </div>
-          <div className="tk-vent" aria-hidden="true">
-            {Array.from({ length: 22 }).map((_, index) => (
-              <span key={index} />
-            ))}
-          </div>
+          <Vent />
         </div>
 
         <div className="tk-underglow" aria-hidden="true" />
@@ -195,9 +192,9 @@ export function RoomScene({ children }: RoomSceneProps) {
             </span>
           </div>
           <div className="tk-toggles">
-            <Toggle label="RESUME" />
-            <Toggle label="GITHUB" />
-            <Toggle label="CONTACT" />
+            {TOGGLES.map(({ label, activate }) => (
+              <Toggle key={label} label={label} onActivate={activate} />
+            ))}
           </div>
         </div>
       </div>
