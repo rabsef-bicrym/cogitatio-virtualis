@@ -32,7 +32,6 @@ export function useAmbientPasses<T extends AmbientPassEvent>({
 
   useEffect(() => {
     if (reducedMotion) {
-      setEvent(null);
       return;
     }
 
@@ -65,5 +64,7 @@ export function useAmbientPasses<T extends AmbientPassEvent>({
     };
   }, [reducedMotion, buildEvent, initialDelay, nextDelay, clearPaddingMs]);
 
-  return event;
+  // Derived at render time instead of cleared via setState in the effect,
+  // which would trigger a cascading render.
+  return reducedMotion ? null : event;
 }
