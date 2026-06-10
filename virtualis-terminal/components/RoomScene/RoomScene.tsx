@@ -115,16 +115,19 @@ export function RoomScene({ children }: RoomSceneProps) {
       <div className="tk-room" aria-hidden="true">
         <div className="tk-rim" />
         <div className="tk-streetlight" />
-        <div className="tk-blinds-perspective">
-          <div className="tk-blinds" />
-          {carEvent ? (
-            <div
-              key={carEvent.id}
-              className={`tk-blinds-carlight tk-blinds-carlight-${carEvent.dir}`}
-            />
-          ) : null}
+        <div className="tk-window-light">
+          <div className="tk-blinds-perspective">
+            <div className="tk-blinds" />
+            {carEvent ? (
+              <div
+                key={carEvent.id}
+                className={`tk-blinds-carlight tk-blinds-carlight-${carEvent.dir}`}
+              />
+            ) : null}
+          </div>
         </div>
         <div className="tk-floor" />
+        <div className="tk-desk" />
         {carEvent ? (
           <div
             key={carEvent.id}
@@ -196,7 +199,10 @@ export function RoomScene({ children }: RoomSceneProps) {
           <Vent />
         </div>
 
-        <div className="tk-underglow" aria-hidden="true" />
+        <div className="tk-monitor-seat" aria-hidden="true">
+          <div className="tk-monitor-seat-shadow" />
+          <div className="tk-monitor-seat-glow" />
+        </div>
 
         <div className="tk-apron">
           <div className="tk-brand">

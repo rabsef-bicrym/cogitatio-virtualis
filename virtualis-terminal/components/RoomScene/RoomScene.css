@@ -69,11 +69,28 @@
   mix-blend-mode: screen;
 }
 
+/* The window light stops at the desk: stripes terminating at the fold is
+   itself the depth cue. The mask lives on this untransformed wrapper so the
+   cut is exactly horizontal (a mask inside the matrix3d would tilt), and it
+   clips the static slats and the sweeping car bars together. */
+.tk-window-light {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  mask-image: linear-gradient(180deg, #000 0%, #000 77.5%, transparent 81%);
+  -webkit-mask-image: linear-gradient(
+    180deg,
+    #000 0%,
+    #000 77.5%,
+    transparent 81%
+  );
+}
+
 .tk-blinds-perspective {
   position: absolute;
   inset: -10%;
   pointer-events: none;
-  z-index: 1;
   transform-origin: top right;
   transform-style: preserve-3d;
   transform: matrix3d(
@@ -205,6 +222,52 @@
     rgba(255, 255, 255, 0.06),
     transparent
   );
+}
+
+/* Desk surface the monitor sits on: a back-edge catch of streetlight and a
+   plane that brightens just past the edge, then falls away toward the room. */
+.tk-desk {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 22%;
+  pointer-events: none;
+}
+
+.tk-desk::before {
+  content: "";
+  position: absolute;
+  top: -1px;
+  right: 0;
+  left: 0;
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    transparent 6%,
+    rgba(255, 190, 120, 0.06) 40%,
+    rgba(255, 200, 130, 0.14) 76%,
+    rgba(255, 200, 130, 0.04) 98%
+  );
+}
+
+.tk-desk::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(
+      130% 90% at 86% 0%,
+      rgba(255, 165, 85, 0.055) 0%,
+      rgba(255, 150, 70, 0.02) 35%,
+      transparent 60%
+    ),
+    linear-gradient(
+      180deg,
+      rgba(40, 30, 21, 0.45) 0%,
+      rgba(18, 13, 9, 0.25) 30%,
+      rgba(0, 0, 0, 0.55) 100%
+    );
 }
 
 /* The tube is the brightest thing in the room: phosphor halo on the wall
@@ -1008,26 +1071,49 @@
   }
 }
 
-.tk-underglow {
-  position: relative;
-  z-index: 0;
-  height: 0;
+/* Seats the monitor on the desk: a tight contact shadow at the base and the
+   screen's reflection pooling on the surface in front. Attached to the
+   monitor so it stays aligned at any viewport size. */
+.tk-monitor-seat {
+  position: absolute;
+  top: 100%;
+  right: -4%;
+  left: -4%;
+  height: 110px;
+  pointer-events: none;
 }
 
-.tk-underglow::after {
-  content: "";
+.tk-monitor-seat-shadow {
   position: absolute;
-  right: 8%;
-  bottom: -14px;
-  left: 8%;
-  height: 32px;
-  pointer-events: none;
+  top: 0;
+  right: 3%;
+  left: 3%;
+  height: 58px;
   background: radial-gradient(
-    ellipse at center,
-    rgba(57, 255, 90, 0.22) 0%,
-    transparent 70%
+    ellipse 56% 64% at 50% 0%,
+    rgba(0, 0, 0, 0.85) 0%,
+    rgba(0, 0, 0, 0.4) 45%,
+    transparent 74%
   );
-  filter: blur(8px);
+  filter: blur(7px);
+}
+
+.tk-monitor-seat-glow {
+  position: absolute;
+  top: 4px;
+  right: 9%;
+  left: 9%;
+  height: 128px;
+  background: radial-gradient(
+    ellipse 52% 58% at 50% 6%,
+    rgba(57, 255, 90, 0.24) 0%,
+    rgba(57, 255, 90, 0.07) 55%,
+    transparent 78%
+  );
+  filter: blur(9px);
+  mix-blend-mode: screen;
+  opacity: 0.65;
+  animation: tk-breathe 6s ease-in-out infinite;
 }
 
 .tk-apron {
