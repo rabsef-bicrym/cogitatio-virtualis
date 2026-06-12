@@ -69,11 +69,28 @@
   mix-blend-mode: screen;
 }
 
+/* The window light stops at the desk: stripes terminating at the fold is
+   itself the depth cue. The mask lives on this untransformed wrapper so the
+   cut is exactly horizontal (a mask inside the matrix3d would tilt), and it
+   clips the static slats and the sweeping car bars together. */
+.tk-window-light {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  mask-image: linear-gradient(180deg, #000 0%, #000 77.5%, transparent 81%);
+  -webkit-mask-image: linear-gradient(
+    180deg,
+    #000 0%,
+    #000 77.5%,
+    transparent 81%
+  );
+}
+
 .tk-blinds-perspective {
   position: absolute;
   inset: -10%;
   pointer-events: none;
-  z-index: 1;
   transform-origin: top right;
   transform-style: preserve-3d;
   transform: matrix3d(
@@ -207,6 +224,73 @@
   );
 }
 
+/* Desk surface the monitor sits on: a back-edge catch of streetlight and a
+   plane that brightens just past the edge, then falls away toward the room. */
+.tk-desk {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 22%;
+  pointer-events: none;
+}
+
+.tk-desk::before {
+  content: "";
+  position: absolute;
+  top: -1px;
+  right: 0;
+  left: 0;
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    transparent 6%,
+    rgba(255, 190, 120, 0.06) 40%,
+    rgba(255, 200, 130, 0.14) 76%,
+    rgba(255, 200, 130, 0.04) 98%
+  );
+}
+
+.tk-desk::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(
+      130% 90% at 86% 0%,
+      rgba(255, 165, 85, 0.055) 0%,
+      rgba(255, 150, 70, 0.02) 35%,
+      transparent 60%
+    ),
+    linear-gradient(
+      180deg,
+      rgba(40, 30, 21, 0.45) 0%,
+      rgba(18, 13, 9, 0.25) 30%,
+      rgba(0, 0, 0, 0.55) 100%
+    );
+}
+
+/* The tube is the brightest thing in the room: phosphor halo on the wall
+   around the monitor, breathing with the screen. */
+.tk-screen-spill {
+  position: absolute;
+  top: 8%;
+  right: 4%;
+  bottom: 12%;
+  left: 4%;
+  z-index: 0;
+  background: radial-gradient(
+    58% 52% at 50% 52%,
+    rgba(57, 255, 90, 0.17) 0%,
+    rgba(57, 255, 90, 0.07) 45%,
+    transparent 72%
+  );
+  filter: blur(24px);
+  mix-blend-mode: screen;
+  opacity: 0.65;
+  animation: tk-breathe 6s ease-in-out infinite;
+}
+
 .tk-motes {
   position: absolute;
   inset: 0;
@@ -214,6 +298,19 @@
   overflow: hidden;
   pointer-events: none;
   mix-blend-mode: screen;
+  /* dust only reads where light catches it: confine to the streetlight shaft */
+  mask-image: radial-gradient(
+    72% 88% at 100% 30%,
+    #000 18%,
+    rgba(0, 0, 0, 0.3) 55%,
+    transparent 78%
+  );
+  -webkit-mask-image: radial-gradient(
+    72% 88% at 100% 30%,
+    #000 18%,
+    rgba(0, 0, 0, 0.3) 55%,
+    transparent 78%
+  );
 }
 
 .tk-motes span {
@@ -287,15 +384,15 @@
     opacity: 0;
   }
   25% {
-    opacity: 0.85;
+    opacity: 0.5;
   }
   50% {
     top: -25%;
     left: -15%;
-    opacity: 1;
+    opacity: 0.62;
   }
   75% {
-    opacity: 0.7;
+    opacity: 0.42;
   }
   100% {
     top: 0%;
@@ -311,15 +408,15 @@
     opacity: 0;
   }
   25% {
-    opacity: 0.85;
+    opacity: 0.5;
   }
   50% {
     top: -25%;
     left: -15%;
-    opacity: 1;
+    opacity: 0.62;
   }
   75% {
-    opacity: 0.7;
+    opacity: 0.42;
   }
   100% {
     top: -50%;
@@ -328,8 +425,127 @@
   }
 }
 
+/* The car's headlights project their own slat pattern: bright bars that
+   sweep across the wall while the streetlight's static shadows stay put.
+   Lives inside .tk-blinds-perspective so it inherits the same projection. */
+.tk-blinds-carlight {
+  position: absolute;
+  inset: -12%;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    179deg,
+    rgba(var(--car-color, 255, 245, 220), 0) 0,
+    rgba(var(--car-color, 255, 245, 220), 0.3) 4px,
+    rgba(var(--car-color, 255, 245, 220), 0.3) 10px,
+    rgba(var(--car-color, 255, 245, 220), 0) 14px,
+    rgba(var(--car-color, 255, 245, 220), 0) 28px
+  );
+  mask-image: radial-gradient(85% 85% at 100% 50%, #000 25%, transparent 80%);
+  -webkit-mask-image: radial-gradient(
+    85% 85% at 100% 50%,
+    #000 25%,
+    transparent 80%
+  );
+  mix-blend-mode: screen;
+  opacity: 0;
+  animation: var(--carlight-anim, tk-carlight-ltr) var(--car-speed, 3s)
+    cubic-bezier(0.45, 0.05, 0.55, 0.95) forwards;
+  will-change: transform, opacity;
+}
+
+.tk-blinds-carlight-ltr {
+  --carlight-anim: tk-carlight-ltr;
+}
+
+.tk-blinds-carlight-rtl {
+  --carlight-anim: tk-carlight-rtl;
+}
+
+@keyframes tk-carlight-ltr {
+  0% {
+    opacity: 0;
+    transform: rotate(-2deg) translate(-34px, 48px) skewY(3.5deg);
+  }
+  25% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 0.68;
+    transform: rotate(-2deg) translate(0, -6px) skewY(0deg);
+  }
+  75% {
+    opacity: 0.38;
+  }
+  100% {
+    opacity: 0;
+    transform: rotate(-2deg) translate(34px, -60px) skewY(-3.5deg);
+  }
+}
+
+@keyframes tk-carlight-rtl {
+  0% {
+    opacity: 0;
+    transform: rotate(-2deg) translate(34px, -60px) skewY(-3.5deg);
+  }
+  25% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 0.68;
+    transform: rotate(-2deg) translate(0, -6px) skewY(0deg);
+  }
+  75% {
+    opacity: 0.38;
+  }
+  100% {
+    opacity: 0;
+    transform: rotate(-2deg) translate(-34px, 48px) skewY(3.5deg);
+  }
+}
+
+/* A walker briefly blocks the streetlight mid-stride. Declared before the
+   car-pass rule so headlights win when both events overlap. */
+.tk-stage-walk .tk-streetlight {
+  animation: tk-streetlight-shadowed var(--ped-speed, 7s) ease-in-out forwards;
+}
+
+@keyframes tk-streetlight-shadowed {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  40%,
+  60% {
+    opacity: 0.82;
+  }
+}
+
 .tk-stage-pass .tk-streetlight {
   animation: tk-streetlight-dim var(--car-speed, 3s) ease-in-out forwards;
+}
+
+/* Headlights swamp the streetlight's pattern mid-pass: its shadows lose
+   contrast while the car's bars dominate, then snap back as the car exits. */
+.tk-stage-pass .tk-blinds {
+  animation: tk-blinds-recede var(--car-speed, 3s) ease-in-out forwards;
+}
+
+@keyframes tk-blinds-recede {
+  0% {
+    opacity: 0.55;
+  }
+  28% {
+    opacity: 0.14;
+  }
+  72% {
+    opacity: 0.12;
+  }
+  90% {
+    opacity: 0.48;
+  }
+  100% {
+    opacity: 0.55;
+  }
 }
 
 @keyframes tk-streetlight-dim {
@@ -442,6 +658,30 @@
   }
   50% {
     transform: translateY(-6px);
+  }
+}
+
+/* The streetlight-cast silhouette also washes out while headlights flood
+   the wall, mirroring tk-blinds-recede. */
+.tk-stage-pass .tk-ped-figure::before {
+  animation: tk-ped-swamped var(--car-speed, 3s) ease-in-out forwards;
+}
+
+@keyframes tk-ped-swamped {
+  0% {
+    opacity: 0.85;
+  }
+  28% {
+    opacity: 0.12;
+  }
+  72% {
+    opacity: 0.1;
+  }
+  90% {
+    opacity: 0.75;
+  }
+  100% {
+    opacity: 0.85;
   }
 }
 
@@ -956,26 +1196,49 @@
   }
 }
 
-.tk-underglow {
-  position: relative;
-  z-index: 0;
-  height: 0;
+/* Seats the monitor on the desk: a tight contact shadow at the base and the
+   screen's reflection pooling on the surface in front. Attached to the
+   monitor so it stays aligned at any viewport size. */
+.tk-monitor-seat {
+  position: absolute;
+  top: 100%;
+  right: -4%;
+  left: -4%;
+  height: 110px;
+  pointer-events: none;
 }
 
-.tk-underglow::after {
-  content: "";
+.tk-monitor-seat-shadow {
   position: absolute;
-  right: 8%;
-  bottom: -14px;
-  left: 8%;
-  height: 32px;
-  pointer-events: none;
+  top: 0;
+  right: 3%;
+  left: 3%;
+  height: 58px;
   background: radial-gradient(
-    ellipse at center,
-    rgba(57, 255, 90, 0.22) 0%,
-    transparent 70%
+    ellipse 56% 64% at 50% 0%,
+    rgba(0, 0, 0, 0.85) 0%,
+    rgba(0, 0, 0, 0.4) 45%,
+    transparent 74%
   );
-  filter: blur(8px);
+  filter: blur(7px);
+}
+
+.tk-monitor-seat-glow {
+  position: absolute;
+  top: 4px;
+  right: 9%;
+  left: 9%;
+  height: 128px;
+  background: radial-gradient(
+    ellipse 52% 58% at 50% 6%,
+    rgba(57, 255, 90, 0.24) 0%,
+    rgba(57, 255, 90, 0.07) 55%,
+    transparent 78%
+  );
+  filter: blur(9px);
+  mix-blend-mode: screen;
+  opacity: 0.65;
+  animation: tk-breathe 6s ease-in-out infinite;
 }
 
 .tk-apron {
@@ -1116,6 +1379,12 @@
   .tk-motes,
   .tk-screen-moving-scanner,
   .tk-screen-poweron {
+    display: none !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tk-blinds-carlight {
     display: none !important;
   }
 }
