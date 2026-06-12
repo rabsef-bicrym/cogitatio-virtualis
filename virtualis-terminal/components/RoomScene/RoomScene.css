@@ -634,6 +634,20 @@
   position: absolute;
   inset: 0;
   z-index: 1;
+  animation: tk-tube-warm 2.1s ease-out both;
+}
+
+/* Opacity-only warm-up keeps the power-on compositor-friendly. */
+@keyframes tk-tube-warm {
+  0% {
+    opacity: 0;
+  }
+  45% {
+    opacity: 0.25;
+  }
+  100% {
+    opacity: 1;
+  }
 }
 
 .tk-glass-window-reflect,
@@ -831,6 +845,117 @@
   }
 }
 
+/* One-shot tube power-on: black shutters part around a blooming scan line.
+   Base states are invisible so the overlay is inert when animations are off. */
+.tk-screen-poweron {
+  position: absolute;
+  inset: 0;
+  z-index: 12;
+  pointer-events: none;
+}
+
+.tk-poweron-shutters,
+.tk-poweron-line,
+.tk-poweron-bloom {
+  position: absolute;
+  inset: 0;
+}
+
+.tk-poweron-shutters::before,
+.tk-poweron-shutters::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  left: 0;
+  height: 51%;
+  background: #010302;
+  transform: scaleY(0);
+  animation: tk-poweron-shutter 1.5s cubic-bezier(0.7, 0, 0.3, 1) both;
+}
+
+.tk-poweron-shutters::before {
+  top: 0;
+  transform-origin: center top;
+}
+
+.tk-poweron-shutters::after {
+  bottom: 0;
+  transform-origin: center bottom;
+}
+
+@keyframes tk-poweron-shutter {
+  0%,
+  42% {
+    transform: scaleY(1);
+  }
+  100% {
+    transform: scaleY(0);
+  }
+}
+
+.tk-poweron-line {
+  opacity: 0;
+  background: linear-gradient(
+    180deg,
+    transparent calc(50% - 8px),
+    rgba(65, 255, 110, 0.12) calc(50% - 3px),
+    rgba(214, 255, 226, 0.9) calc(50% - 1px),
+    #f4fff7 50%,
+    rgba(214, 255, 226, 0.9) calc(50% + 1px),
+    rgba(65, 255, 110, 0.12) calc(50% + 3px),
+    transparent calc(50% + 8px)
+  );
+  mix-blend-mode: screen;
+  animation: tk-poweron-line 1.5s ease-out both;
+}
+
+@keyframes tk-poweron-line {
+  0% {
+    opacity: 0;
+    transform: scaleX(0.02);
+  }
+  16% {
+    opacity: 1;
+    transform: scaleX(0.07);
+  }
+  40% {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+  62% {
+    opacity: 0.5;
+  }
+  100% {
+    opacity: 0;
+    transform: scaleX(1);
+  }
+}
+
+.tk-poweron-bloom {
+  opacity: 0;
+  background: radial-gradient(
+    ellipse at 50% 50%,
+    rgba(120, 255, 150, 0.4) 0%,
+    rgba(57, 255, 90, 0.1) 55%,
+    transparent 80%
+  );
+  mix-blend-mode: screen;
+  animation: tk-poweron-bloom 2.1s ease-out both;
+}
+
+@keyframes tk-poweron-bloom {
+  0%,
+  40% {
+    opacity: 0;
+  }
+  62% {
+    opacity: 0.85;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
 .tk-underglow {
   position: relative;
   z-index: 0;
@@ -989,7 +1114,8 @@
   .tk-carpass,
   .tk-ped,
   .tk-motes,
-  .tk-screen-moving-scanner {
+  .tk-screen-moving-scanner,
+  .tk-screen-poweron {
     display: none !important;
   }
 }

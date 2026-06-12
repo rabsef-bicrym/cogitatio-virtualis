@@ -107,6 +107,7 @@ export const VirtualisTerminal: React.FC<VirtualisTerminalProps> = ({
   );
   const performRecoveryRef = useRef(async (): Promise<void> => {});
   const controllerRef = useRef<Controller | null>(null);
+  const pendingCommandsRef = useRef<string[]>([]);
   const clearTerminalRef = useRef(async (): Promise<void> => {});
   const surfaceRef = useRef<HTMLDivElement>(null);
   const shouldAutoScrollRef = useRef(true);
@@ -233,6 +234,13 @@ export const VirtualisTerminal: React.FC<VirtualisTerminalProps> = ({
 
         await newController.mount(terminalHandle);
         setController(newController);
+
+        if (newController.handleCommand) {
+          const queuedCommands = pendingCommandsRef.current.splice(0);
+          for (const queuedCommand of queuedCommands) {
+            await newController.handleCommand(queuedCommand);
+          }
+        }
       } catch (error) {
         console.error(`[VirtualisTerminal] Mount error:`, error);
         await handleErrorRef.current(error as Error);
@@ -386,13 +394,21 @@ export const VirtualisTerminal: React.FC<VirtualisTerminalProps> = ({
 
   const handleCommand = useCallback(
     async (command: string) => {
-      if (terminalState.mode !== "NORMAL" || !controller?.handleCommand) return;
+      if (terminalState.mode !== "NORMAL") return;
+
+      const sanitizedCommand = stripLeakedLoaderFrame(
+        command,
+        config.loader.slides,
+      );
+
+      // Commands can arrive before the designated controller finishes
+      // mounting; hold them so they run once it does instead of vanishing.
+      if (!controller?.handleCommand) {
+        pendingCommandsRef.current.push(sanitizedCommand);
+        return;
+      }
 
       try {
-        const sanitizedCommand = stripLeakedLoaderFrame(
-          command,
-          config.loader.slides,
-        );
         await controller.handleCommand(sanitizedCommand);
       } catch (error) {
         await handleError(error as Error);
@@ -689,6 +705,7 @@ export const VirtualisTerminal: React.FC<VirtualisTerminalProps> = ({
           position: absolute;
           inset: 0;
           overflow: hidden;
+          container-type: inline-size;
           background: ${config.theme.background};
         }
 
@@ -699,19 +716,51 @@ export const VirtualisTerminal: React.FC<VirtualisTerminalProps> = ({
           padding: 0.65rem 0.45rem;
           border: 0;
           border-radius: 0;
+          color: var(--terminal-green);
+          line-height: 1.45;
+          text-shadow: var(--crt-fringe), var(--crt-bloom);
           background: radial-gradient(
             80% 80% at 50% 50%,
-            #102210 0%,
-            #061006 58%,
-            #020602 100%
+            #0f2412 0%,
+            #07120a 58%,
+            #030704 100%
           );
           box-shadow: none;
+        }
+
+        :global(.terminal-surface ::selection) {
+          background: rgba(65, 255, 110, 0.85);
+          color: #052b12;
+          text-shadow: none;
         }
 
         :global(.terminal-surface .crt-terminal__overflow-container) {
           height: 100%;
           max-height: 100%;
           border-radius: 0;
+          scrollbar-width: thin;
+          scrollbar-color: rgba(65, 255, 110, 0.3) transparent;
+        }
+
+        :global(
+          .terminal-surface .crt-terminal__overflow-container::-webkit-scrollbar
+        ) {
+          width: 6px;
+        }
+
+        :global(
+          .terminal-surface
+            .crt-terminal__overflow-container::-webkit-scrollbar-thumb
+        ) {
+          background: rgba(65, 255, 110, 0.28);
+          border-radius: 3px;
+        }
+
+        :global(
+          .terminal-surface
+            .crt-terminal__overflow-container::-webkit-scrollbar-track
+        ) {
+          background: transparent;
         }
 
         :global(.terminal-surface .crt-terminal__screen) {
@@ -740,6 +789,18 @@ export const VirtualisTerminal: React.FC<VirtualisTerminalProps> = ({
           overflow-wrap: anywhere;
           white-space: normal;
           word-break: break-word;
+        }
+
+        :global(.terminal-surface .crt-command-line__prompt),
+        :global(.terminal-surface .crt-command-line__input),
+        :global(.terminal-surface .crt-command-line__input-string),
+        :global(.terminal-surface .crt-cursor-symbol) {
+          color: var(--terminal-green-bright);
+        }
+
+        :global(.terminal-surface .ascii-line) {
+          font-size: clamp(7px, 1.7cqw, 14px);
+          white-space: pre;
         }
 
         :global(.terminal-surface .crt-restored-transcript) {
