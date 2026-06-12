@@ -1,10 +1,11 @@
 // cogitatio-virtualis/virtualis-terminal/lib/threads/prisma.ts
 
-import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
+import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@/lib/generated/prisma/client";
 
-const databaseUrl = process.env.DATABASE_URL ?? "file:./prisma/dev.db";
-const adapter = new PrismaBetterSqlite3({ url: databaseUrl });
+const databaseUrl =
+  process.env.DATABASE_URL ?? "postgresql://localhost:5432/cogitatio_virtualis";
+const adapter = new PrismaPg({ connectionString: databaseUrl });
 
 let prisma: PrismaClient;
 

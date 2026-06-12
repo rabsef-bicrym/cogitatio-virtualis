@@ -55,7 +55,7 @@ The public chat route is intentionally thin:
 - Next.js 16
 - React 19
 - TypeScript 6
-- Prisma 7 with SQLite and `@prisma/adapter-better-sqlite3`
+- Prisma 7 with Postgres and `@prisma/adapter-pg`
 - Anthropic TypeScript SDK
 - `crt-terminal`
 - Zod
@@ -133,8 +133,9 @@ npm run check
 ## Environment Variables
 
 ```bash
-VECTOR_API_URL=http://localhost:8000
-DATABASE_URL=file:./prisma/dev.db
+DATABASE_URL=postgresql://user:password@host/dbname?sslmode=require
+VOYAGE_API_KEY=pa-xxxx
+VOYAGE_MODEL=voyage-3
 ANTHROPIC_API_KEY=sk-ant-xxxx
 ANTHROPIC_CHAT_MODEL=claude-sonnet-4-6
 ANTHROPIC_BOOT_MODEL=claude-haiku-4-5
