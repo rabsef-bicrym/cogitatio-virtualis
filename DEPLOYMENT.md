@@ -61,8 +61,19 @@ Environment variables:
 | `VOYAGE_MODEL` | the model the corpus was published with (must match) |
 | `ANTHROPIC_API_KEY` | your Anthropic key |
 | `ANTHROPIC_CHAT_MODEL` / `ANTHROPIC_BOOT_MODEL` / `ANTHROPIC_HAIKU_MODEL` | as in `.env.example` |
+| `CRON_SECRET` | long random string protecting the scheduled cleanup endpoint |
+| `GITHUB_TOKEN` | fine-grained read-only token; the model's self-repo tools use the GitHub API on Vercel, and shared serverless IPs exhaust the unauthenticated quota |
 
 Deploy.
+
+### 5. Migrating old conversations (optional)
+
+If you want chat threads from the previous EC2 deployment, run this once
+from the old box before decommissioning it:
+
+```bash
+DATABASE_URL=postgres://... python3 virtualis-terminal/scripts/migrate_threads.py virtualis-terminal/prisma/dev.db
+```
 
 ## Updating the CV
 
