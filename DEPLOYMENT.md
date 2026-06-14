@@ -39,12 +39,15 @@ index (same as always):
 
 ```bash
 pip install 'psycopg[binary]'   # or: pip install -e '.[publish]'
-VECTOR_DATABASE_URL=postgres://... python scripts/publish_index.py
+VECTOR_DATABASE_URL=postgres://... VOYAGE_API_KEY=... VOYAGE_MODEL=voyage-3 python scripts/publish_index.py
 ```
 
 The publish is a transactional full replace — rerun it whenever the
 documents change. It creates the `vector_chunks` table and the pgvector
-extension on first run.
+extension on first run. If `VOYAGE_API_KEY` and `VOYAGE_MODEL` are already in
+`cogitatio-server/.env`, they do not need to be repeated inline; the publisher
+does not re-embed documents, but it imports the existing document pipeline,
+which validates the local Voyage configuration at startup.
 
 ### 4. Create the Vercel project
 

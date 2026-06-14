@@ -128,6 +128,11 @@ async function handlePostChat(
       return writer.end();
     }
 
+    if (command.startsWith("/")) {
+      await handleSlashCommand(sessionId, command, writer);
+      return writer.end();
+    }
+
     const rate = await checkChatRateLimits(sessionId, clientIp(req));
     if (!rate.allowed) {
       writer.send({
@@ -137,11 +142,6 @@ async function handlePostChat(
           "RATE LIMIT EXCEEDED -- the terminal needs a moment to cool down. " +
           "Try again in a few minutes.",
       });
-      return writer.end();
-    }
-
-    if (command.startsWith("/")) {
-      await handleSlashCommand(sessionId, command, writer);
       return writer.end();
     }
 

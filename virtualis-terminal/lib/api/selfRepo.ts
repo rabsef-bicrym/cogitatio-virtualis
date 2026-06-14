@@ -555,12 +555,13 @@ export class GitHubSelfRepoReader implements SelfRepoSource {
 
   async recentCommits(input: SelfRepoLogInput = {}) {
     const limit = clampLimit(input.limit, DEFAULT_LOG_LIMIT, MAX_LOG_LIMIT);
+    const commit = await this.currentCommit();
     const data = await this.githubJson<
       {
         sha: string;
         commit: { committer: { date: string }; message: string };
       }[]
-    >(`/repos/${GITHUB_REPO}/commits?per_page=${limit}`);
+    >(`/repos/${GITHUB_REPO}/commits?sha=${commit}&per_page=${limit}`);
     const commits: SelfRepoCommit[] = data.map((entry) => ({
       sha: entry.sha,
       date: entry.commit.committer.date,
