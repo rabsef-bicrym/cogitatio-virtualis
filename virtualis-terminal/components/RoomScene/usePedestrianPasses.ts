@@ -1,6 +1,5 @@
-import { useEffect, useState } from "react";
 import { PED_FACING, type PedestrianFacing } from "./pedFacing";
-import { useReducedMotion } from "./useReducedMotion";
+import { useAmbientPasses } from "./useAmbientPasses";
 
 export type PedestrianDirection = "ltr" | "rtl";
 
@@ -49,55 +48,22 @@ function buildPedestrianEvent(): PedestrianPassEvent {
   };
 }
 
+function initialPedestrianDelay(): number {
+  return 10000 + Math.random() * 25000;
+}
+
+function nextPedestrianDelay(event: PedestrianPassEvent): number {
+  return event.speed * 1000 + 60000 + Math.random() * 180000;
+}
+
 /**
  * Schedules pedestrian silhouettes independently from car passes.
  */
 export function usePedestrianPasses(): PedestrianPassEvent | null {
-  const [event, setEvent] = useState<PedestrianPassEvent | null>(null);
-  const reducedMotion = useReducedMotion();
-
-  useEffect(() => {
-    if (reducedMotion) {
-      const resetTimer = setTimeout(() => {
-        setEvent(null);
-      }, 0);
-      return () => clearTimeout(resetTimer);
-    }
-
-    let cancelled = false;
-    let fireTimer: ReturnType<typeof setTimeout> | null = null;
-    let clearTimer: ReturnType<typeof setTimeout> | null = null;
-
-    const clearTimers = () => {
-      if (fireTimer) clearTimeout(fireTimer);
-      if (clearTimer) clearTimeout(clearTimer);
-      fireTimer = null;
-      clearTimer = null;
-    };
-
-    const schedule = (delay: number) => {
-      fireTimer = setTimeout(() => {
-        if (cancelled) return;
-
-        const nextEvent = buildPedestrianEvent();
-        setEvent(nextEvent);
-        clearTimer = setTimeout(
-          () => {
-            setEvent(null);
-          },
-          nextEvent.speed * 1000 + 160,
-        );
-        schedule(nextEvent.speed * 1000 + 60000 + Math.random() * 180000);
-      }, delay);
-    };
-
-    schedule(10000 + Math.random() * 25000);
-
-    return () => {
-      cancelled = true;
-      clearTimers();
-    };
-  }, [reducedMotion]);
-
-  return event;
+  return useAmbientPasses({
+    buildEvent: buildPedestrianEvent,
+    initialDelay: initialPedestrianDelay,
+    nextDelay: nextPedestrianDelay,
+    clearPaddingMs: 160,
+  });
 }

@@ -93,7 +93,7 @@ export const ASCII_STYLES = `
     display: inline-block;
     opacity: 0;
     animation: asciiGlowChar 0.5s ease-out forwards;
-    text-shadow: 0 0 5px rgba(0, 255, 0, 0.5);
+    text-shadow: 0 0 5px rgba(65, 255, 110, 0.5);
   }
 
   @keyframes fadeInLine {
