@@ -7,16 +7,16 @@ import {
 } from "../types/terminal";
 
 export const DEFAULT_THEME: TerminalTheme = {
-  background: "#0a0a0a",
-  foreground: "#00ff00",
-  primary: "#00ff00",
-  secondary: "#00cc00",
-  error: "#ff0000",
-  warning: "#ffff00",
-  success: "#00ff00",
-  system: "#00ffff",
-  dim: "rgba(0, 255, 0, 0.5)",
-  glow: "rgba(0, 255, 0, 0.2)",
+  background: "#040604",
+  foreground: "#41ff6e",
+  primary: "#41ff6e",
+  secondary: "#35e75f",
+  error: "#ff5555",
+  warning: "#ffd75e",
+  success: "#41ff6e",
+  system: "#5ee8e8",
+  dim: "rgba(65, 255, 110, 0.55)",
+  glow: "rgba(65, 255, 110, 0.2)",
   info: "",
   highlight: "",
 };
@@ -153,10 +153,10 @@ export const EFFECTS = {
   `,
 
   glow: `
-    box-shadow: 
-      0 0 10px rgba(0, 255, 0, 0.2),
-      0 0 20px rgba(0, 255, 0, 0.1),
-      0 0 30px rgba(0, 255, 0, 0.1);
+    box-shadow:
+      0 0 10px rgba(65, 255, 110, 0.2),
+      0 0 20px rgba(65, 255, 110, 0.1),
+      0 0 30px rgba(65, 255, 110, 0.1);
   `,
 
   flicker: `
