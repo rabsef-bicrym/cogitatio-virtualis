@@ -30,7 +30,7 @@ write tiny status fragments that give a waiting user texture without making any
 claim about real work.
 
 Rules:
-- Generate exactly five lines.
+- Generate four or five lines.
 - Each line must be 3 to 9 words.
 - Do not mention resumes, documents, jobs, tools, APIs, vectors, models, Claude,
   tokens, databases, searching, retrieval, ranking, drafting, or generation.

@@ -60,8 +60,16 @@ export default function Home() {
         <title>COGITATIO VIRTUALIS</title>
         <meta
           name="description"
-          content="Neural Interface for Legal Knowledge"
+          content="An interactive curriculum vitae: a CRT terminal with a mind of its own. Ask it about Eric Helal."
         />
+        <meta property="og:title" content="COGITATIO VIRTUALIS" />
+        <meta
+          property="og:description"
+          content="An interactive curriculum vitae: a CRT terminal with a mind of its own. Ask it about Eric Helal."
+        />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="/og.png" />
+        <meta name="twitter:card" content="summary_large_image" />
       </Head>
 
       <main className="home-shell">

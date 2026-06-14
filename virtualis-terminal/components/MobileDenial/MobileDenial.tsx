@@ -34,6 +34,14 @@ export function MobileDenial({ canRotateToDesktop }: MobileDenialProps) {
             <span>View resume</span>
             <span className={styles.arrow}>-&gt;</span>
           </Link>
+          <a
+            href="https://github.com/rabsef-bicrym/cogitatio-virtualis"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <span>GitHub</span>
+            <span className={styles.arrow}>-&gt;</span>
+          </a>
           <a href="mailto:eric.helal@icloud.com">
             <span>Contact</span>
             <span className={styles.arrow}>-&gt;</span>

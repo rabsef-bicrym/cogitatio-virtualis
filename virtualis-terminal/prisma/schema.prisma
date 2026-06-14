@@ -1,10 +1,12 @@
 generator client {
-  provider = "prisma-client"
-  output   = "../lib/generated/prisma"
+  provider        = "prisma-client"
+  output          = "../lib/generated/prisma"
+  previewFeatures = ["postgresqlExtensions"]
 }
 
 datasource db {
-  provider = "sqlite"
+  provider   = "postgresql"
+  extensions = [vector]
 }
 
 model Session {
@@ -31,4 +33,25 @@ model ThreadMessage {
   session   Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 
   @@index([sessionId, timestamp])
+}
+
+model RateLimitBucket {
+  key         String   @id
+  count       Int      @default(0)
+  windowStart DateTime @default(now())
+}
+
+// The published vector corpus. Written by cogitatio-server's
+// scripts/publish_index.py and read by lib/api/vector.ts; declared here so
+// `prisma db push` preserves it instead of treating it as an unknown table.
+model VectorChunk {
+  vectorId  Int                         @id @map("vector_id")
+  docId     String                      @map("doc_id")
+  chunkId   String                      @map("chunk_id")
+  content   String
+  metadata  Json
+  embedding Unsupported("vector(1024)")
+
+  @@index([docId])
+  @@map("vector_chunks")
 }

@@ -58,6 +58,8 @@ export interface ExperienceCommandInput {
 export interface SearchCommandInput {
   embeddingType: SearchEmbeddingType;
   query: string;
+  k?: number;
+  filterTypes?: DocumentType[];
 }
 
 export interface OtherCommandInput {
@@ -545,6 +547,8 @@ export async function runExperienceCommand({
 export async function runSearchCommand({
   embeddingType,
   query,
+  k,
+  filterTypes,
 }: SearchCommandInput): Promise<HardCommandResponse> {
   if (!query) {
     return {
@@ -558,7 +562,8 @@ export async function runSearchCommand({
     const searchResults = await vectorApi.search({
       query,
       embedding_type: embeddingType,
-      k: 5, // or however many results you want
+      k: k ?? 5,
+      filter_types: filterTypes,
     });
 
     // 3) Build a user-friendly message showing doc name, type, # chunks, and short chunk excerpts

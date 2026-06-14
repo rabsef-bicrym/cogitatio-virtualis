@@ -147,7 +147,7 @@ export class ClaudeAPI {
       {
         name: "search_vector_database",
         description:
-          "perform a vector search over the doc store with {query, embedding_type}.",
+          "perform a vector search over the doc store. Optional k (1-20, default 5) controls result count; optional filter_types restricts results to the given document types.",
         input_schema: {
           type: "object",
           properties: {
@@ -155,6 +155,14 @@ export class ClaudeAPI {
             embedding_type: {
               type: "string",
               enum: ["none", "query", "document"],
+            },
+            k: { type: "number" },
+            filter_types: {
+              type: "array",
+              items: {
+                type: "string",
+                enum: ["experience", "education", "project", "other"],
+              },
             },
           },
           required: ["query", "embedding_type"],
@@ -175,6 +183,17 @@ export class ClaudeAPI {
         input_schema: {
           type: "object",
           properties: {},
+        },
+      },
+      {
+        name: "self_repo_log",
+        description:
+          "list recent commits to the Cogitatio Virtualis repository (sha, date, subject). Useful for describing how the system has changed recently.",
+        input_schema: {
+          type: "object",
+          properties: {
+            limit: { type: "number" },
+          },
         },
       },
       {
@@ -284,13 +303,27 @@ export class ClaudeAPI {
 
     try {
       // Call Anthropic's endpoint
+      // Cache breakpoints on the tool block and system prompt: both are
+      // identical across every turn of every thread, so subsequent calls
+      // read them from the prompt cache instead of re-processing them.
+      const tools = this.tools.map((tool, index) =>
+        index === this.tools.length - 1
+          ? { ...tool, cache_control: { type: "ephemeral" as const } }
+          : tool,
+      );
       const response = await this.client.messages.create({
         model: anthropicConfig.chat.model,
         max_tokens: anthropicConfig.chat.maxTokens,
         temperature: anthropicConfig.chat.temperature,
-        system: this.systemPrompt!,
+        system: [
+          {
+            type: "text" as const,
+            text: this.systemPrompt!,
+            cache_control: { type: "ephemeral" as const },
+          },
+        ],
         messages: claudeMessages,
-        tools: this.tools,
+        tools,
       });
 
       const contentBlocks = response.content as ContentBlock[];
