@@ -55,6 +55,21 @@ const otherInput = z.object({
 const searchInput = z.object({
   embedding_type: z.enum(["none", "query", "document"]),
   query: z.string().min(1),
+  k: z.number().int().min(1).max(20).optional(),
+  filter_types: z
+    .array(
+      z.enum([
+        DocumentType.EXPERIENCE,
+        DocumentType.EDUCATION,
+        DocumentType.PROJECT,
+        DocumentType.OTHER,
+      ]),
+    )
+    .optional(),
+});
+
+const selfRepoLogInput = z.object({
+  limit: z.number().int().positive().optional(),
 });
 
 const selfRepoListInput = z.object({
@@ -76,6 +91,7 @@ const selfRepoSearchInput = z.object({
 
 export interface ClaudeToolOperations extends HardCommandOperations {
   runSelfRepoCurrentCommit(): Promise<HardCommandResponse>;
+  runSelfRepoLog(input: { limit?: number }): Promise<HardCommandResponse>;
   runSelfRepoList(input: {
     prefix?: string;
     limit?: number;
@@ -102,6 +118,7 @@ export const claudeToolOperations: ClaudeToolOperations = {
       data: { commit },
     };
   },
+  runSelfRepoLog: (input) => selfRepoReader.recentCommits(input),
   runSelfRepoList: (input) => selfRepoReader.listFiles(input),
   runSelfRepoReadFile: (input) => selfRepoReader.readFile(input),
   runSelfRepoSearch: (input) => selfRepoReader.search(input),
@@ -165,6 +182,8 @@ export async function dispatchClaudeToolUse(
         return await operations.runSearchCommand({
           embeddingType: input.embedding_type,
           query: input.query,
+          k: input.k,
+          filterTypes: input.filter_types,
         });
       }
 
@@ -173,6 +192,11 @@ export async function dispatchClaudeToolUse(
 
       case "self_repo_current_commit":
         return await operations.runSelfRepoCurrentCommit();
+
+      case "self_repo_log": {
+        const input = selfRepoLogInput.parse(toolUse.input);
+        return await operations.runSelfRepoLog(input);
+      }
 
       case "self_repo_list_files": {
         const input = selfRepoListInput.parse(toolUse.input);

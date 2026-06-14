@@ -36,6 +36,7 @@ function operations(): ClaudeToolOperations {
     runSelfRepoList: vi.fn(() => ok()),
     runSelfRepoReadFile: vi.fn(() => ok()),
     runSelfRepoSearch: vi.fn(() => ok()),
+    runSelfRepoLog: vi.fn(() => ok()),
   };
 }
 

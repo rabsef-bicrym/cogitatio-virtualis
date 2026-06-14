@@ -542,6 +542,10 @@ export const VirtualisTerminal: React.FC<VirtualisTerminalProps> = ({
       restoreScrollTopGuard?.();
       activeScrollContainer = scrollContainer;
       if (activeScrollContainer) {
+        // Surface streamed terminal output to assistive tech: crt-terminal
+        // renders plain divs, so announce new lines politely as they print.
+        activeScrollContainer.setAttribute("role", "log");
+        activeScrollContainer.setAttribute("aria-live", "polite");
         attachScrollListeners(activeScrollContainer);
         restoreScrollTopGuard = installScrollTopGuard(activeScrollContainer);
       }

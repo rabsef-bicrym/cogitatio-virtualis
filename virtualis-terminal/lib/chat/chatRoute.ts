@@ -9,9 +9,16 @@ import {
   storeMessage,
 } from "@/lib/chat/threadStore";
 import { handleHardCommand } from "@/lib/chat/hardCommands";
+import { checkChatRateLimits } from "@/lib/api/rateLimit";
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+function clientIp(req: NextApiRequest): string | null {
+  const forwarded = req.headers["x-forwarded-for"];
+  const first = Array.isArray(forwarded) ? forwarded[0] : forwarded;
+  return first?.split(",")[0]?.trim() || req.socket?.remoteAddress || null;
 }
 
 function resolveSessionId(
@@ -118,6 +125,18 @@ async function handlePostChat(
     const { command } = req.body as { command?: string };
     if (!command || typeof command !== "string") {
       writer.send({ success: false, message: "Missing or invalid command" });
+      return writer.end();
+    }
+
+    const rate = await checkChatRateLimits(sessionId, clientIp(req));
+    if (!rate.allowed) {
+      writer.send({
+        type: "complete",
+        success: false,
+        message:
+          "RATE LIMIT EXCEEDED -- the terminal needs a moment to cool down. " +
+          "Try again in a few minutes.",
+      });
       return writer.end();
     }
 
