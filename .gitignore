@@ -48,6 +48,8 @@ build/
 .env
 .env.test
 .env.production
+.env*.local
+.vercel/
 
 # Next.js build output
 .next/
