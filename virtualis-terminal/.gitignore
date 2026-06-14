@@ -53,3 +53,4 @@ prisma/migrations/*
 # resume data
 # Replace your resume here
 public/resume.pdf
+.env*.local
